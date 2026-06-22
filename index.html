@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EV電量">
+<meta name="application-name" content="EV電量">
+<meta name="theme-color" content="#08111f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>EV 充電計算器 v22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* ---- single accent system (Apple-blue) ---- */
+  --accent:#0a84ff;          /* iOS system blue */
+  --accent-press:#0060df;
+  --accent-tint:rgba(10,132,255,.14);
+  --accent-line:rgba(10,132,255,.32);
+
+  /* ---- neutral surfaces (one cool-grey family) ---- */
+  --bg:#0a0e16;
+  --surface:#141925;          /* card */
+  --surface-2:#1b212e;        /* inset / input field */
+  --surface-3:#222a39;
+  --line:rgba(255,255,255,.08);
+  --line-2:rgba(255,255,255,.14);
+  --card-inset:rgba(255,255,255,.04);
+  --card-inset-2:rgba(255,255,255,.03);
+
+  /* ---- text ---- */
+  /* ---- 3-tier text hierarchy ---- */
+  --t1:#ffffff;           /* TIER 1: data values (brightest) */
+  --t1-accent:#4da3ff;    /* TIER 1 accent: validate/primary numbers */
+  --t2:#dfe5ef;           /* TIER 2: card titles / field names (mid-bright) */
+  --t3:#8b93a6;           /* TIER 3: descriptions / hints (clearly dimmer) */
+  --t4:#646c80;           /* TIER 4: footnotes / units / timestamps (faintest) */
+  /* legacy aliases mapped onto tiers */
+  --text:#dfe5ef;         /* default body == tier2 */
+  --muted:#8b93a6;        /* == tier3 */
+  --muted2:#aab2c4;       /* between t2/t3 for labels */
+  --faint:#646c80;        /* == tier4 */
+  --text-strong:#ffffff;
+
+  /* ---- semantic (used sparingly, only where meaning needs it) ---- */
+  --good:#30d158;
+  --warn:#ffd60a;
+
+  /* ---- shape tokens ---- */
+  --r-lg:16px;
+  --r-md:13px;
+  --r-sm:10px;
+  --r-pill:999px;
+
+  /* display font for headline + key numbers */
+  --font-display:'Bricolage Grotesque',-apple-system,sans-serif;
+}
+/* ============ LIGHT THEME (purpose-built, not inverted) ============ */
+[data-theme="light"]{
+  --accent:#0a6fe0;
+  --accent-press:#0858b4;
+  --accent-tint:rgba(10,111,224,.08);
+  --accent-line:rgba(10,111,224,.22);
+
+  --bg:#f5f6f8;            /* warm off-white page */
+  --surface:#ffffff;       /* pure white card */
+  --surface-2:#f2f4f7;     /* inset field */
+  --surface-3:#e8ebf0;
+  --line:rgba(15,23,42,.09);
+  --line-2:rgba(15,23,42,.14);
+  --card-inset:rgba(15,23,42,.025);
+  --card-inset-2:rgba(15,23,42,.018);
+
+  --t1:#0b1626;           /* data values - near black */
+  --t1-accent:#0a6fe0;
+  --t2:#33415c;           /* titles - dark slate */
+  --t3:#6b7588;           /* descriptions - mid grey */
+  --t4:#97a0b2;           /* faint */
+  --text:#33415c;
+  --muted:#6b7588;
+  --muted2:#4c5972;
+  --faint:#97a0b2;
+  --text-strong:#0b1626;
+  --good:#178a43;
+  --warn:#a8730a;
+}
+[data-theme="light"] body{
+  background:
+    radial-gradient(760px 380px at 8% -8%, rgba(10,111,224,.06), transparent 62%),
+    var(--bg);
+}
+/* cards: soft shadow for separation instead of glow */
+[data-theme="light"] .card{box-shadow:0 1px 2px rgba(15,23,42,.04),0 6px 18px -12px rgba(15,23,42,.12)}
+
+/* gauge */
+[data-theme="light"] .gauge-track{stroke:rgba(15,23,42,.09)}
+[data-theme="light"] .brand-icon{box-shadow:0 4px 12px rgba(15,23,42,.12)}
+[data-theme="light"] .gauge-wrap{filter:none}
+[data-theme="light"] .gauge-num{color:var(--accent)}
+
+/* OUTPUT CARD: solid tint + clear border, NO glass-blur (which greys out on light) */
+[data-theme="light"] .output-card{
+  background:linear-gradient(160deg,#eef4fe,#ffffff 60%);
+  border:1px solid var(--accent-line);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  box-shadow:0 2px 4px rgba(15,23,42,.04),0 14px 36px -18px rgba(10,111,224,.25);
+}
+/* kWh hero card: light blue tint, crisp border, gentle shadow (no glow) */
+[data-theme="light"] .hero-kwh{
+  border-color:rgba(10,160,220,.3);
+  background:linear-gradient(160deg,#e6f6fd,#ffffff 65%);
+  box-shadow:0 2px 8px -3px rgba(10,160,220,.2),inset 0 1px 0 #fff;
+}
+[data-theme="light"] .hero-kwh .kwh-color{color:#0a8fd6}
+[data-theme="light"] .hero-card{background:var(--surface-2)}
+[data-theme="light"] .big small,[data-theme="light"] .metric .value small,[data-theme="light"] .gauge-num small{color:var(--t3)}
+[data-theme="light"] .metric .value,[data-theme="light"] .valuebox input{color:var(--t1)}
+[data-theme="light"] .metric{background:#fff;border-color:var(--line)}
+
+/* input icon boxes: light tint, no heavy glow */
+[data-theme="light"] .ico{background:var(--accent-tint);border-color:var(--accent-line);box-shadow:none}
+
+/* mode toggle active: keep gradient, white text, soft shadow */
+[data-theme="light"] #modeAmount:checked+label,[data-theme="light"] #modeTarget:checked+label{
+  background:linear-gradient(135deg,#2f8bff,#0a6fe0);color:#fff;box-shadow:0 3px 10px -3px rgba(10,111,224,.45)}
+[data-theme="light"] .mode{background:var(--surface-2)}
+
+/* risk / error stay readable on light */
+[data-theme="light"] .risk-note{background:#fff7e6;border-color:rgba(168,115,10,.3);color:#8a5d00}
+[data-theme="light"] .error{background:#fdecea;border-color:rgba(200,40,30,.3);color:#a3271d}
+
+/* chips, sliders */
+[data-theme="light"] .chip,[data-theme="light"] .recent-chip{background:var(--surface-2);color:var(--t2)}
+[data-theme="light"] .status-pill{background:var(--accent-tint)}
+
+/* modals / popovers / toast shadows */
+[data-theme="light"] .toast,[data-theme="light"] .popover,[data-theme="light"] .modal{box-shadow:0 18px 50px rgba(15,23,42,.16)}
+[data-theme="light"] .icon-btn,[data-theme="light"] .help-btn,[data-theme="light"] .btn-small,[data-theme="light"] .toggle-btn{background:var(--surface);color:var(--t2)}
+
+*{box-sizing:border-box}
+html,body{
+  margin:0;min-height:100%;
+  background:
+    radial-gradient(820px 420px at 8% -6%, rgba(10,132,255,.16), transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+body{padding:max(10px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom))}
+button,input,select{font-family:inherit}
+button{-webkit-tap-highlight-color:transparent;cursor:pointer}
+.app{max-width:540px;margin:0 auto}
+
+/* ---- icon system: uniform inline svg ---- */
+.ic{width:16px;height:16px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;display:block}
+
+/* ===== HEADER ===== */
+header{margin:2px 2px 10px}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-icon{width:32px;height:32px;border-radius:9px;flex:0 0 auto;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+h1{margin:0 0 2px;font-family:var(--font-display);font-size:23px;line-height:1.0;letter-spacing:-.02em;font-weight:800}
+.sub{color:var(--t3);font-size:12px;line-height:1.3}
+.header-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{width:38px;height:38px;border-radius:var(--r-pill);border:1px solid var(--line-2);background:var(--surface-2);color:var(--t2);display:grid;place-items:center;flex:0 0 auto}
+.icon-btn:active{background:var(--surface-3);transform:scale(.96)}
+.icon-btn .ic{width:18px;height:18px}
+.help-btn{
+  border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);
+  border-radius:var(--r-pill);padding:8px 13px;font-size:13px;font-weight:700;white-space:nowrap;
+}
+.help-btn:active{background:var(--surface-3)}
+
+/* ===== CARD (flat, restrained) ===== */
+.card{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);overflow:hidden;margin-bottom:9px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--line)}
+.card-title{font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--t2)}
+.card-note{font-size:12px;color:var(--t3)}
+
+.btn-small,.toggle-btn{
+  border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);
+  border-radius:var(--r-pill);padding:8px 13px;font-size:12.5px;font-weight:600;white-space:nowrap;
+}
+.btn-small:active,.toggle-btn:active{background:var(--surface-3)}
+
+/* ===== VEHICLE CARD ===== */
+.vehicle-card{padding:10px 11px}
+.vehicle-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.vehicle-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--t2);text-transform:none}
+
+.vehicle-grid{display:grid;grid-template-columns:minmax(0,1.95fr) minmax(94px,.7fr);gap:8px;align-items:stretch}
+.vehicle-select-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--surface-2);padding:0 12px;min-width:0}
+.vehicle-select-wrap select{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--t2);font-size:15px;font-weight:700;padding:11px 0;appearance:none}
+.capacity-edit{border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--surface-2);padding:6px 10px;display:flex;flex-direction:column;justify-content:center}
+.capacity-edit label{display:block;font-size:10px;color:var(--muted);font-weight:600;margin-bottom:1px;letter-spacing:.01em}
+.capacity-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4px}
+.capacity-main input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--accent);font-size:16px;font-weight:800;text-align:right;padding:1px 0;appearance:textfield}
+.capacity-main input::-webkit-outer-spin-button,.capacity-main input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.vehicle-meta-line{display:grid;gap:6px;margin-top:8px}
+.status-pill{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:1px solid var(--accent-line);background:var(--accent-tint);color:var(--muted2);border-radius:var(--r-pill);padding:6px 11px;font-size:12.5px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status-pill .ic{color:var(--accent)}
+.recent-models{display:flex;gap:6px;overflow:auto;scrollbar-width:none}
+.recent-models::-webkit-scrollbar{display:none}
+.recent-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--muted2);border-radius:var(--r-pill);padding:7px 11px;font-size:12px;font-weight:600}
+.recent-chip .ic{width:13px;height:13px;color:var(--faint)}
+
+/* ===== MODE TOGGLE ===== */
+.mode-card{padding:0}
+.mode-card .card-head{border-bottom:none;padding-bottom:4px}
+.mode{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);margin:0 11px 11px}
+.mode input{position:absolute;opacity:0;pointer-events:none}
+.mode label{display:block;text-align:center;border-radius:var(--r-sm);padding:9px 5px;color:var(--t3);font-size:13px;line-height:1.15;font-weight:600;user-select:none;transition:all .15s ease}
+#modeAmount:checked+label,#modeTarget:checked+label{background:linear-gradient(135deg,#3d9bff,#0a84ff);color:#fff;font-weight:700;box-shadow:0 4px 16px -4px rgba(10,132,255,.55)}
+
+/* ===== ERROR / RISK ===== */
+.error{display:none;margin:0 0 11px;padding:11px 13px;border-radius:var(--r-md);border:1px solid rgba(255,69,58,.3);background:rgba(255,69,58,.1);color:#ffb3ad;font-size:13px;line-height:1.45}
+.error.show{display:block}
+.risk-note{display:none;margin:0 0 11px;padding:11px 13px;border-radius:var(--r-md);border:1px solid rgba(255,214,10,.28);background:rgba(255,214,10,.1);color:#ffe88a;font-size:13px;line-height:1.4}
+.risk-note.show{display:block}
+
+/* ===== INPUT ITEMS ===== */
+.input-item{display:grid;grid-template-columns:28px minmax(0,1fr) 102px;gap:9px;align-items:center;padding:9px 13px;border-bottom:1px solid var(--line)}
+.input-item:last-child{border-bottom:0}
+.ico{width:28px;height:28px;border-radius:var(--r-sm);display:grid;place-items:center;background:var(--accent-tint);border:1px solid var(--accent-line);color:var(--accent);box-shadow:0 0 14px -6px rgba(10,132,255,.5)}
+.ico .ic{width:16px;height:16px}
+.row-label{display:flex;align-items:center;gap:5px}
+.field{font-size:14px;font-weight:680;line-height:1.2;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.info{border:0;background:transparent;color:var(--faint);width:20px;height:20px;border-radius:var(--r-pill);padding:0;display:inline-grid;place-items:center;flex:0 0 auto}
+.info .ic{width:15px;height:15px}
+.valuebox{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;padding:0 9px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface-2)}
+.valuebox input,.control input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-weight:700;appearance:textfield;-moz-appearance:textfield}
+.valuebox input{font-size:17px;font-weight:800;padding:8px 0;text-align:right;color:var(--t1)}
+.valuebox input::-webkit-outer-spin-button,.valuebox input::-webkit-inner-spin-button,.control input::-webkit-outer-spin-button,.control input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.unit{color:var(--t4);font-size:11px;white-space:nowrap;font-weight:600}
+.costbox input{font-size:16px}.costbox .unit{font-size:10px}
+.range-block,.chips,.detail-only{display:none}
+.app.detailed .range-block{display:block}.app.detailed .chips{display:flex}.app.detailed .detail-only{display:grid}.app.detailed .row-label{margin-bottom:6px}
+input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--accent)}
+.ticks{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);line-height:1;margin-top:2px}
+.chips{gap:6px;overflow:auto;scrollbar-width:none;margin-top:8px;padding-bottom:1px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line-2);background:var(--surface-2);color:var(--muted2);border-radius:var(--r-pill);padding:7px 11px;font-size:12px;font-weight:600}
+.chip:active{background:var(--surface-3)}
+
+/* ===== OUTPUT CARD — the ONE place glass is used for emphasis ===== */
+.output-card{
+  position:relative;overflow:hidden;border-radius:var(--r-lg);padding:13px;margin-bottom:9px;
+  border:1px solid var(--accent-line);
+  background:linear-gradient(155deg, rgba(10,132,255,.16), rgba(20,25,37,.85) 55%);
+  backdrop-filter:blur(20px) saturate(140%);
+  -webkit-backdrop-filter:blur(20px) saturate(140%);
+  box-shadow:0 16px 44px -18px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.output-head{position:relative;display:flex;justify-content:space-between;gap:8px;margin-bottom:9px;align-items:baseline}
+.output-head .card-title{font-size:16px}
+.updated{font-size:12px;color:var(--t4);white-space:nowrap}
+.hero{position:relative;display:grid;grid-template-columns:auto 1fr;gap:14px;margin-bottom:9px;align-items:center}
+.gauge-wrap{position:relative;width:128px;height:128px;flex-shrink:0;filter:drop-shadow(0 0 18px rgba(10,132,255,.28))}
+.gauge{width:128px;height:128px;transform:rotate(-90deg)}
+.gauge-track{fill:none;stroke:rgba(255,255,255,.08);stroke-width:9}
+.gauge-fill{fill:none;stroke:url(#gaugeGrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.gauge-label{font-size:10.5px;font-weight:600;color:var(--t3);letter-spacing:.04em;margin-bottom:1px}
+.gauge-num{font-family:var(--font-display);font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:.9;color:#4da3ff}
+.gauge-num small{color:var(--t3)}
+.gauge-num small{font-size:14px;color:var(--muted2);font-weight:700;margin-left:1px}
+.hero-side{display:grid;gap:8px;min-width:0}
+.hero-card{min-width:0;border-radius:var(--r-md);padding:13px 14px;border:1px solid var(--line);background:var(--card-inset)}
+.hero-kwh{position:relative;border-color:rgba(90,200,250,.28);background:linear-gradient(160deg,rgba(90,200,250,.14),rgba(255,255,255,.03) 60%);box-shadow:0 0 32px -10px rgba(90,200,250,.35),inset 0 1px 0 rgba(255,255,255,.06)}
+.hero-kwh .kwh-color{color:#67d4ff}
+
+.card-label,.metric-label{display:flex;align-items:center;gap:5px;color:var(--t3);font-size:11px;font-weight:600;letter-spacing:.02em;line-height:1.2;margin-bottom:5px;min-width:0}
+.card-label .ic,.metric-label .ic{width:15px;height:15px;color:var(--muted)}
+
+.big{font-family:var(--font-display);font-size:clamp(30px,8.5vw,40px);font-weight:800;letter-spacing:-.04em;line-height:.95;overflow-wrap:anywhere}
+.big small{font-size:13px;color:var(--t3);letter-spacing:-.02em;margin-left:2px;font-weight:700}
+.pct-color{color:#4da3ff}
+.kwh-color{color:var(--t1)}
+.metrics{position:relative;display:none;grid-template-columns:repeat(2,1fr);gap:8px}
+.app.detailed .metrics{display:grid}
+.metric{min-width:0;min-height:64px;border:1px solid var(--line);border-radius:var(--r-md);padding:10px;background:var(--card-inset-2)}
+.metric .value{font-size:clamp(18px,5.2vw,22px);font-weight:800;line-height:1.04;letter-spacing:-.035em;overflow-wrap:anywhere;color:var(--t1)}
+.metric .value small{font-size:11px;color:var(--t3);font-weight:600;margin-left:2px;letter-spacing:-.02em}
+
+/* ===== POPOVER / MODAL ===== */
+.popover{position:fixed;z-index:1300;max-width:min(320px,calc(100vw - 28px));background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-md);padding:13px 14px;box-shadow:0 18px 50px rgba(0,0,0,.5);display:none}
+.popover.open{display:block}
+.pop-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.pop-text{font-size:13px;line-height:1.5;color:var(--muted2)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:1100;display:none;align-items:flex-end;padding:14px}
+.modal-bg.open{display:flex}
+.modal{width:100%;max-width:540px;margin:0 auto;background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-lg);box-shadow:0 20px 70px rgba(0,0,0,.6);overflow:hidden;max-height:min(86vh,720px);display:flex;flex-direction:column}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--line)}
+.modal-title{font-size:18px;font-weight:700;display:flex;align-items:center;gap:6px}
+.close{width:36px;height:36px;border-radius:var(--r-pill);border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);font-size:20px;display:grid;place-items:center}
+.modal-body{padding:14px 16px 16px;overflow:auto;display:grid;gap:12px}
+.setrow{display:grid;gap:7px}
+.setrow label{font-size:13px;color:var(--muted2);font-weight:600;display:flex;align-items:center;gap:5px}
+.control{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-md);padding:0 12px}
+.control input,.control select{font-size:16px;padding:13px 0;text-align:left;width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-weight:700;appearance:none}
+.select-control{grid-template-columns:minmax(0,1fr) auto}
+.calib-open{width:100%;border:1px solid var(--accent-line);background:var(--accent-tint);color:var(--text);border-radius:var(--r-md);padding:13px 12px;text-align:left;font-size:15px;font-weight:700}
+.calib-open small{display:block;margin-top:4px;color:var(--muted);font-size:12px;font-weight:500;line-height:1.35}
+.calib-result{border:1px solid var(--accent-line);background:var(--accent-tint);border-radius:var(--r-md);padding:13px;display:grid;gap:9px}
+.calib-result-main{font-family:var(--font-display);font-size:28px;line-height:1;font-weight:800;letter-spacing:-.03em;color:#5eb0ff}
+.calib-result-main small{font-size:14px;color:var(--muted2);letter-spacing:-.02em}
+.calib-result-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.calib-mini{border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r-sm);padding:10px}
+.calib-mini .label{color:var(--muted);font-size:12px;margin-bottom:5px}
+.calib-mini .value{font-size:18px;font-weight:700}
+.apply-capacity{border:0;background:var(--accent);color:#fff;border-radius:var(--r-md);padding:13px 10px;font-size:15px;font-weight:700}
+.apply-capacity:active{background:var(--accent-press)}
+.apply-capacity:disabled{opacity:.4}
+.confidence{color:var(--muted2);font-size:13px;line-height:1.45}
+.footnote{color:var(--t4);font-size:11px;line-height:1.4;padding:0 2px 4px}
+
+/* ===== HELP ===== */
+.help-pages{position:relative;min-height:360px}
+.help-page{display:none;gap:12px}
+.help-page.active{display:grid}
+.help-art{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface-2);padding:14px;min-height:170px;display:grid;place-items:center;overflow:hidden}
+.phone-mock{width:min(230px,100%);border-radius:22px;border:1px solid var(--line-2);background:var(--bg);padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.mock-bar{height:8px;border-radius:99px;background:var(--line-2);margin:0 auto 12px;width:46%}
+.mock-row{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:9px 10px;margin:8px 0;font-size:12px;color:var(--muted2)}
+.mock-row strong{color:var(--accent)}
+.mock-result{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mock-result div{border-radius:var(--r-sm);padding:10px;background:var(--accent-tint);font-size:12px}
+.help-steps{display:grid;gap:9px}
+.help-step{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:start;color:var(--muted2);font-size:14px;line-height:1.45}
+.help-step b{display:grid;place-items:center;width:26px;height:26px;border-radius:var(--r-pill);background:var(--accent-tint);color:var(--accent);font-size:13px;font-weight:700}
+.help-nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px}
+.help-dots{display:flex;gap:6px;align-items:center;justify-content:center}
+.help-dot{width:7px;height:7px;border-radius:var(--r-pill);background:var(--line-2);transition:all .2s ease}
+.help-dot.active{background:var(--accent);width:18px}
+.share-icon{width:52px;height:52px;border-radius:14px;border:1px solid var(--line-2);background:var(--surface);display:grid;place-items:center;color:var(--accent);margin:0 auto 10px}
+.share-icon .ic{width:26px;height:26px}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(12px);min-width:160px;max-width:min(92vw,420px);padding:11px 14px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface);color:var(--text);font-size:14px;font-weight:600;box-shadow:0 18px 50px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:all .22s ease;z-index:1400;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:390px){
+  .topbar{gap:8px}
+  .brand-icon{width:33px;height:33px}
+  h1{font-size:24px}
+  .sub{font-size:13px}
+  .header-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{width:38px;height:38px;border-radius:var(--r-pill);border:1px solid var(--line-2);background:var(--surface-2);color:var(--t2);display:grid;place-items:center;flex:0 0 auto}
+.icon-btn:active{background:var(--surface-3);transform:scale(.96)}
+.icon-btn .ic{width:18px;height:18px}
+.help-btn{padding:8px 10px;font-size:12px}
+  .vehicle-grid{grid-template-columns:minmax(0,1.6fr) minmax(90px,.85fr)}
+  .vehicle-select-wrap select{font-size:15px}
+  .capacity-main input{font-size:17px}
+  .mode label{font-size:13px}
+  .input-item{grid-template-columns:28px minmax(0,1fr) 96px;gap:8px;padding:11px}
+  .unit{font-size:10px}
+  .valuebox input{font-size:16px}
+  .metric{padding:10px}
+}
+
+/* micro-interactions */
+.btn-small,.toggle-btn,.help-btn,.chip,.recent-chip,.apply-capacity,.calib-open,.mode label{transition:transform .12s ease, background .15s ease, border-color .15s ease}
+.btn-small:active,.toggle-btn:active,.help-btn:active,.chip:active,.recent-chip:active,.apply-capacity:active,.calib-open:active{transform:scale(.97)}
+.card{transition:border-color .2s ease}
+.output-card{transition:border-color .2s ease, box-shadow .2s ease}
+@media(hover:hover){
+  .btn-small:hover,.toggle-btn:hover,.help-btn:hover{border-color:var(--accent-line)}
+  .chip:hover,.recent-chip:hover{border-color:var(--accent-line);color:var(--text)}
+}
+</style>
+</head>
+<body>
+<main class="app" id="app">
+
+<header class="topbar">
+  <div class="brand">
+    <img src="icon-192.png" alt="" class="brand-icon">
+    <div>
+      <h1>EV 充電計算器</h1>
+      <div class="sub">輸入預計充電量或目標電量，即時計算最終電量及所需 kWh</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" id="themeToggle" type="button" aria-label="切換主題"><svg class="ic" viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.6 6.6 0 0 0 21 12.8z"/></svg></button>
+    <button class="help-btn" id="openHelp" type="button">使用說明</button>
+  </div>
+</header>
+
+
+<section class="card vehicle-card">
+  <div class="vehicle-label">
+    <span class="vehicle-title">車型 / 電池</span>
+    <button class="btn-small" id="openSettings" type="button">進階</button>
+  </div>
+  <div class="vehicle-grid">
+    <div class="vehicle-select-wrap">
+      <select id="modelSelect">
+        
+<option value="custom" data-capacity="">自訂 / 手動輸入</option>
+<optgroup label="Tesla">
+  <option value="tesla-model-3-rwd" data-capacity="64">Tesla Model 3 RWD · 64 kWh</option>
+  <option value="tesla-model-3-lr" data-capacity="78.1">Tesla Model 3 LR · 78.1 kWh</option>
+  <option value="tesla-model-y-rwd" data-capacity="60">Tesla Model Y RWD · 60 kWh</option>
+  <option value="tesla-model-y-lr" data-capacity="81">Tesla Model Y LR · 81 kWh</option>
+</optgroup>
+<optgroup label="BYD">
+  <option value="byd-atto3-sr" data-capacity="49.92">BYD Atto 3 SR · 49.9 kWh</option>
+  <option value="byd-atto3-er" data-capacity="60.48">BYD Atto 3 ER · 60.5 kWh</option>
+  <option value="byd-dolphin-er" data-capacity="60.48">BYD Dolphin ER · 60.5 kWh</option>
+  <option value="byd-seal-er" data-capacity="82.56">BYD Seal · 82.6 kWh</option>
+</optgroup>
+<optgroup label="其他">
+  <option value="volvo-ex30-er" data-capacity="69">Volvo EX30 · 69 kWh</option>
+  <option value="bmw-ix1" data-capacity="64.7">BMW iX1 · 64.7 kWh</option>
+  <option value="hyundai-ioniq5-lr" data-capacity="84">IONIQ 5 LR · 84 kWh</option>
+  <option value="kia-ev5-lr" data-capacity="88.1">Kia EV5 LR · 88.1 kWh</option>
+  <option value="mg4-lr" data-capacity="64">MG4 LR / XPower · 64 kWh</option>
+  <option value="nissan-leaf-eplus" data-capacity="62">Nissan Leaf e+ · 62 kWh</option>
+</optgroup>
+
+      </select>
+      <span class="unit">⌄</span>
+    </div>
+    <div class="capacity-edit">
+      <label for="capacity">電池容量</label>
+      <div class="capacity-main">
+        <input id="capacity" type="number" inputmode="decimal" min="1" max="200" step="0.1" value="78.1">
+        <span class="unit">kWh</span>
+      </div>
+    </div>
+  </div>
+  <div class="vehicle-meta-line">
+    <div class="status-pill" id="currentModelBadge"><svg class="ic" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span id="badgeText">Tesla Model 3 LR · 78.1 kWh</span></div>
+    <div class="recent-models" id="recentModels"></div>
+  </div>
+</section>
+
+<section class="mode-card card"><div class="card-head"><div><div class="card-title">計算模式</div><div class="card-note" id="modeHint">先買 kWh → 估最終 %</div></div></div><section class="mode"><div><input id="modeAmount" name="mode" type="radio" checked><label for="modeAmount">輸入 kWh → 最終 %</label></div><div><input id="modeTarget" name="mode" type="radio"><label for="modeTarget">目標 % → 所需 kWh</label></div></section></section>
+<div class="error" id="error"></div>
+<section class="card" id="inputPanel"><div class="card-head"><div><div class="card-title">輸入</div><div class="card-note">預設只顯示核心欄位</div></div><button class="toggle-btn" id="toggleDetail" type="button">詳細顯示</button></div>
+<div class="input-item"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="8" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="15"/><line x1="6" y1="11" x2="6" y2="15"/></svg></div><div><div class="row-label"><div class="field">目前電量</div><button class="info" type="button" data-info="current"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="currentRange" type="range" min="0" max="100" step="1" value="28"><div class="ticks"><span>0%</span><span>50%</span><span>100%</span></div></div></div><div class="valuebox"><input id="currentNumber" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="28"><span class="unit">%</span></div></div>
+<div class="input-item"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M9 3v6M15 3v6"/><path d="M6 9h12v3a6 6 0 0 1-12 0z"/><line x1="12" y1="18" x2="12" y2="22"/></svg></div><div><div class="row-label"><div class="field" id="mainInputLabel">預計充電量</div><button class="info" type="button" data-info="main"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="mainRange" type="range" min="0" max="120" step="1" value="50"><div class="ticks" id="mainTicks"><span>0</span><span>60</span><span>120 kWh</span></div></div></div><div class="valuebox"><input id="mainNumber" type="number" inputmode="decimal" min="0" step="0.1" value="50"><span class="unit" id="mainUnit">kWh</span></div></div>
+<div class="input-item detail-only"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg></div><div><div class="row-label"><div class="field">充電速度</div><button class="info" type="button" data-info="speed"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="speedRange" type="range" min="1" max="350" step="1" value="11"><div class="ticks"><span>1</span><span>175</span><span>350 kW</span></div></div><div class="chips"><button class="chip" data-speed="7" type="button">7 kW</button><button class="chip" data-speed="11" type="button">11 kW</button><button class="chip" data-speed="50" type="button">50 kW</button><button class="chip" data-speed="100" type="button">100 kW</button></div></div><div class="valuebox"><input id="speedNumber" type="number" inputmode="decimal" min="0.1" step="0.1" value="11"><span class="unit">kW</span></div></div>
+<div class="input-item detail-only"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6.5C17 4.6 14.8 4 12 4S7 4.9 7 7.5 9.7 11 12 11s5 .8 5 3.5S14.2 18 12 18s-5-.6-5-2.5"/></svg></div><div><div class="row-label"><div class="field">電費單價</div><button class="info" type="button" data-info="cost"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="costRange" type="range" min="0" max="10" step="0.1" value="1.7"><div class="ticks"><span>0</span><span>5</span><span>10</span></div></div><div class="chips"><button class="chip" data-cost="0" type="button">免費</button><button class="chip" data-cost="1.7" type="button">HK$1.7</button><button class="chip" data-cost="2.4" type="button">HK$2.4</button><button class="chip" data-cost="3" type="button">HK$3.0</button><button class="chip" data-cost="4" type="button">HK$4.0</button></div></div><div class="valuebox costbox"><input id="costNumber" type="number" inputmode="decimal" min="0" step="0.01" value="1.7"><span class="unit">$/kWh</span></div></div>
+</section>
+<section class="output-card"><div class="output-head"><div class="card-title">輸出</div><div class="updated" id="updatedTime">更新時間：--:--</div></div><div class="hero">
+  <div class="gauge-wrap">
+    <svg class="gauge" viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0a84ff"/>
+          <stop offset="100%" stop-color="#5ac8fa"/>
+        </linearGradient>
+      </defs>
+      <circle class="gauge-track" cx="60" cy="60" r="52"/>
+      <circle class="gauge-fill" id="gaugeFill" cx="60" cy="60" r="52"/>
+    </svg>
+    <div class="gauge-center">
+      <div class="gauge-label">最終電量</div>
+      <div class="gauge-num"><span id="finalPct">87.1</span><small>%</small></div>
+    </div>
+  </div>
+  <div class="hero-side">
+    <div class="hero-card hero-kwh">
+      <div class="card-label"><svg class="ic" viewBox="0 0 24 24"><path d="M9 3v6M15 3v6"/><path d="M6 9h12v3a6 6 0 0 1-12 0z"/><line x1="12" y1="18" x2="12" y2="22"/></svg>預計充電量</div>
+      <div class="big kwh-color"><span id="wallKwhHero">50.0</span><small>kWh</small></div>
+    </div>
+  </div>
+</div>
+<div class="risk-note" id="riskNote"></div><div class="metrics"><div class="metric"><div class="metric-label"><svg class="ic" viewBox="0 0 24 24"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg>電池實際增加</div><div class="value blue"><span id="batteryKwh">46.00</span><small>kWh</small></div></div><div class="metric"><div class="metric-label"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>預計充電時間</div><div class="value purple"><span id="duration">4小時33分</span></div></div><div class="metric"><div class="metric-label"><svg class="ic" viewBox="0 0 24 24"><path d="M5 21V4h13l-2.5 4L18 12H5"/></svg>預計完成時間</div><div class="value amber"><span id="finishTime">--:--</span></div></div><div class="metric"><div class="metric-label"><svg class="ic" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6.5C17 4.6 14.8 4 12 4S7 4.9 7 7.5 9.7 11 12 11s5 .8 5 3.5S14.2 18 12 18s-5-.6-5-2.5"/></svg>參考費用</div><div class="value green">HK$<span id="totalCost">120.00</span></div></div></div></section>
+<div class="footnote">核心假設：輸入或計算出的 kWh 為充電器計費／預購電量；電池實際增加電量會按充電效率折算。</div>
+</main>
+<div class="popover" id="popover"><div class="pop-title" id="popTitle"></div><div class="pop-text" id="popText"></div></div><div class="toast" id="toast"></div>
+
+<div class="modal-bg" id="settingsBg">
+  <section class="modal">
+    <div class="modal-head"><div class="modal-title">進階設定</div><button class="close" id="closeSettings" type="button">×</button></div>
+    <div class="modal-body">
+      <div class="setrow">
+        <label for="modelSelectSettings">車型選擇</label>
+        <div class="control select-control">
+          <select id="modelSelectSettings">
+            
+<option value="custom" data-capacity="">自訂 / 手動輸入</option>
+<optgroup label="Tesla">
+  <option value="tesla-model-3-rwd" data-capacity="64">Tesla Model 3 RWD · 64 kWh</option>
+  <option value="tesla-model-3-lr" data-capacity="78.1">Tesla Model 3 LR · 78.1 kWh</option>
+  <option value="tesla-model-y-rwd" data-capacity="60">Tesla Model Y RWD · 60 kWh</option>
+  <option value="tesla-model-y-lr" data-capacity="81">Tesla Model Y LR · 81 kWh</option>
+</optgroup>
+<optgroup label="BYD">
+  <option value="byd-atto3-sr" data-capacity="49.92">BYD Atto 3 SR · 49.9 kWh</option>
+  <option value="byd-atto3-er" data-capacity="60.48">BYD Atto 3 ER · 60.5 kWh</option>
+  <option value="byd-dolphin-er" data-capacity="60.48">BYD Dolphin ER · 60.5 kWh</option>
+  <option value="byd-seal-er" data-capacity="82.56">BYD Seal · 82.6 kWh</option>
+</optgroup>
+<optgroup label="其他">
+  <option value="volvo-ex30-er" data-capacity="69">Volvo EX30 · 69 kWh</option>
+  <option value="bmw-ix1" data-capacity="64.7">BMW iX1 · 64.7 kWh</option>
+  <option value="hyundai-ioniq5-lr" data-capacity="84">IONIQ 5 LR · 84 kWh</option>
+  <option value="kia-ev5-lr" data-capacity="88.1">Kia EV5 LR · 88.1 kWh</option>
+  <option value="mg4-lr" data-capacity="64">MG4 LR / XPower · 64 kWh</option>
+  <option value="nissan-leaf-eplus" data-capacity="62">Nissan Leaf e+ · 62 kWh</option>
+</optgroup>
+
+          </select>
+          <span class="unit">⌄</span>
+        </div>
+      </div>
+      <div class="setrow">
+        <label for="capacitySettings">電池容量</label>
+        <div class="control">
+          <input id="capacitySettings" type="number" inputmode="decimal" min="1" max="200" step="0.1" value="78.1">
+          <span class="unit">kWh</span>
+        </div>
+      </div>
+      <div class="setrow">
+        <label for="efficiency">充電效率</label>
+        <div class="control">
+          <input id="efficiency" type="number" inputmode="decimal" min="1" max="100" step="1" value="100">
+          <span class="unit">%</span>
+        </div>
+      </div>
+      <button class="calib-open" id="openCalib" type="button">電池容量估算<small>用一次充電紀錄反推目前可用容量</small></button>
+      <div class="footnote">主畫面可快速改車型及容量；其餘設定放喺呢度。</div>
+    </div>
+  </section>
+</div>
+
+<div class="modal-bg" id="calibBg">
+<section class="modal"><div class="modal-head"><div class="modal-title">電池容量估算 <button class="info" type="button" data-info="calibGuide"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><button class="close" id="closeCalib" type="button">×</button></div><div class="modal-body"><div class="setrow"><label for="calibStart">充電前電量 <button class="info" type="button" data-info="calibStart"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></label><div class="control"><input id="calibStart" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="12"><span class="unit">%</span></div></div><div class="setrow"><label for="calibEnd">充電後電量 <button class="info" type="button" data-info="calibEnd"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></label><div class="control"><input id="calibEnd" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="90"><span class="unit">%</span></div></div><div class="setrow"><label for="calibKwh">充電器計費電量 <button class="info" type="button" data-info="calibKwh"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></label><div class="control"><input id="calibKwh" type="number" inputmode="decimal" min="0" step="0.1" value="52"><span class="unit">kWh</span></div></div><div class="setrow"><label for="calibEff">充電效率 <button class="info" type="button" data-info="calibEff"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></label><div class="control"><input id="calibEff" type="number" inputmode="decimal" min="1" max="100" step="1" value="100"><span class="unit">%</span></div></div><div class="calib-result"><div><div class="card-note">估算目前可用容量 <button class="info" type="button" data-info="calibResult"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="calib-result-main"><span id="calibCapacity">—</span><small> kWh</small></div></div><div class="calib-result-grid"><div class="calib-mini"><div class="label">相對目前設定</div><div class="value"><span id="calibRatio">—</span>%</div></div><div class="calib-mini"><div class="label">SOC 差距</div><div class="value"><span id="calibDelta">—</span>%</div></div></div><div class="confidence" id="calibConfidence">請輸入充電紀錄。</div><button class="apply-capacity" id="applyCalibCapacity" type="button" disabled>套用為電池容量</button></div><div class="footnote">此功能以車機 SOC 作線性近似。建議使用較大範圍充電紀錄，例如 20% → 80% 或 10% → 90%。不使用通用電池曲線，避免不同車款及電池化學組成造成假精準。</div></div></section></div>
+
+<div class="modal-bg" id="helpBg">
+  <section class="modal">
+    <div class="modal-head"><div class="modal-title">使用說明</div><button class="close" id="closeHelp" type="button">×</button></div>
+    <div class="modal-body">
+      <div class="help-pages">
+        <div class="help-page active" data-help-page="0">
+          <div class="help-art">
+            <div class="phone-mock">
+              <div class="mock-bar"></div>
+              <div class="mock-row"><strong>1 車型</strong>：先選正車款 / 電池容量</div>
+              <div class="mock-row"><strong>2 模式</strong>：kWh → % 或 % → kWh</div>
+              <div class="mock-row"><strong>3 輸入</strong>：目前電量 + 預計充電量</div>
+              <div class="mock-result"><div>最終電量<br><strong>80%</strong></div><div>所需電量<br><strong>32 kWh</strong></div></div>
+            </div>
+          </div>
+          <div class="help-steps">
+            <div class="help-step"><b>1</b><span>先確認車型及電池容量，避免用錯車款計算。</span></div>
+            <div class="help-step"><b>2</b><span>選擇計算模式：已知 kWh 就估最終 %；想叉到目標 % 就反計 kWh。</span></div>
+            <div class="help-step"><b>3</b><span>輸入目前電量，再睇輸出結果。需要時間及費用時撳「詳細顯示」。</span></div>
+          </div>
+        </div>
+        <div class="help-page" data-help-page="1">
+          <div class="help-art"><div class="phone-mock"><div class="mock-bar"></div><div class="share-icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 16V4"/><polyline points="8 8 12 4 16 8"/><path d="M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg></div><div class="mock-row">Safari 開網址</div><div class="mock-row">分享</div><div class="mock-row"><strong>加入主畫面</strong></div></div></div>
+          <div class="help-steps">
+            <div class="help-step"><b>1</b><span>用 iPhone Safari 開啟工具網址。</span></div>
+            <div class="help-step"><b>2</b><span>撳下方分享按鈕。</span></div>
+            <div class="help-step"><b>3</b><span>選擇「加入主畫面」，之後可當 app icon 開啟。</span></div>
+          </div>
+        </div>
+        <div class="help-page" data-help-page="2">
+          <div class="help-art"><div class="phone-mock"><div class="mock-bar"></div><div class="share-icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg></div><div class="mock-row">Chrome 開網址</div><div class="mock-row">右上角 ⋮</div><div class="mock-row"><strong>Add to Home screen</strong></div></div></div>
+          <div class="help-steps">
+            <div class="help-step"><b>1</b><span>用 Android Chrome 開啟工具網址。</span></div>
+            <div class="help-step"><b>2</b><span>撳右上角「⋮」。</span></div>
+            <div class="help-step"><b>3</b><span>選擇「Add to Home screen / 加入主畫面」。</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="help-nav">
+        <button class="btn-small" id="helpPrev" type="button">上一頁</button>
+        <div class="help-dots"><span class="help-dot active"></span><span class="help-dot"></span><span class="help-dot"></span></div>
+        <button class="btn-small" id="helpNext" type="button">下一頁</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const E={app:$('app'),toast:$('toast'),toggleDetail:$('toggleDetail'),modeAmount:$('modeAmount'),modeTarget:$('modeTarget'),modeHint:$('modeHint'),error:$('error'),updatedTime:$('updatedTime'),modelSelect:$('modelSelect'),modelSelectSettings:$('modelSelectSettings'),currentModelBadge:$('currentModelBadge'),recentModels:$('recentModels'),capacity:$('capacity'),capacitySettings:$('capacitySettings'),efficiency:$('efficiency'),openHelp:$('openHelp'),helpBg:$('helpBg'),closeHelp:$('closeHelp'),helpPrev:$('helpPrev'),helpNext:$('helpNext'),openSettings:$('openSettings'),settingsBg:$('settingsBg'),closeSettings:$('closeSettings'),finalPct:$('finalPct'),gaugeFill:$('gaugeFill'),wallKwhHero:$('wallKwhHero'),batteryKwh:$('batteryKwh'),duration:$('duration'),finishTime:$('finishTime'),totalCost:$('totalCost'),riskNote:$('riskNote'),currentRange:$('currentRange'),currentNumber:$('currentNumber'),mainRange:$('mainRange'),mainNumber:$('mainNumber'),mainInputLabel:$('mainInputLabel'),mainUnit:$('mainUnit'),mainTicks:$('mainTicks'),speedRange:$('speedRange'),speedNumber:$('speedNumber'),costRange:$('costRange'),costNumber:$('costNumber'),popover:$('popover'),popTitle:$('popTitle'),popText:$('popText'),openCalib:$('openCalib'),calibBg:$('calibBg'),closeCalib:$('closeCalib'),calibStart:$('calibStart'),calibEnd:$('calibEnd'),calibKwh:$('calibKwh'),calibEff:$('calibEff'),calibCapacity:$('calibCapacity'),calibRatio:$('calibRatio'),calibDelta:$('calibDelta'),calibConfidence:$('calibConfidence'),applyCalibCapacity:$('applyCalibCapacity')};
+let S={detailed:false,mode:'amount',model:'tesla-model-3-lr',capacity:78.1,efficiency:100,current:28,amount:50,target:80,speed:11,cost:1.7,recent:['tesla-model-3-lr']};
+const STORAGE_KEY='ev-calculator-v22';
+const info={wall:['預計充電量','指充電器計費或預購的 kWh。此數值通常已包含充電損耗，因此會高於電池實際增加電量。'],current:['目前電量','車機或儀錶板顯示的目前電池百分比（SOC）。'],main:['主要輸入','輸入 kWh 可估算最終電量；輸入目標 % 可反推所需 kWh。'],speed:['充電速度','建議輸入實際平均功率。時間只作估算。'],cost:['電費單價','費用只供參考。'],calibGuide:['點樣做估算','用同一次充電紀錄輸入：充電前%、充電後%、充電器顯示或收費 kWh。建議用較大範圍，例如 20% → 80% 或 10% → 90%。'],calibStart:['充電前電量','開始充電前，記低車機顯示的電量百分比。'],calibEnd:['充電後電量','充電完成後，記低車機顯示的電量百分比。SOC 差距太細會較唔準。'],calibKwh:['充電器計費電量','填充電器、充電站 app 或帳單顯示的 kWh。'],calibEff:['充電效率','用來把充電器計費 kWh 折算成電池實際增加電量。未有實測時可先用 100%。'],calibResult:['估算結果','此數值是按車機 SOC 作線性近似的目前可用容量。']};
+function mode(){return E.modeTarget.checked?'target':'amount'}
+function n(el){return Number(el.value)}
+function fmt(v,d=2){return Number.isFinite(v)?v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
+function fmt1(v){return Number.isFinite(v)?v.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'}
+function clamp(v,min,max){v=Number(v);return Number.isFinite(v)?Math.max(min,Math.min(max,v)):min}
+function dur(h){if(!Number.isFinite(h)||h<0)return'—';let m=Math.round(h*60),hh=Math.floor(m/60),mm=m%60;if(hh<=0)return`${m}分鐘`;return mm?`${hh}小時${String(mm).padStart(2,'0')}分`:`${hh}小時`}
+function finish(h){if(!Number.isFinite(h)||h<0)return'—';return new Date(Date.now()+h*3600*1000).toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'})}
+function getOptionLabel(value){const option=[...E.modelSelect.options].find(o=>o.value===value);return option?option.textContent.trim():'自訂'}
+function shortLabel(label){return label.replace(/\s*·\s*\d+(\.\d+)?\s*kWh$/,'').trim()}
+function currentModelLabel(){return E.modelSelect.value==='custom'?`自訂 · ${fmt1(n(E.capacity))} kWh`:getOptionLabel(E.modelSelect.value)}
+function updateVehicleBadge(){const t=document.getElementById('badgeText');const cap=fmt1(n(E.capacity));let label;if(E.modelSelect.value==='custom'){label=`自訂 · ${cap} kWh`}else{label=`${shortLabel(getOptionLabel(E.modelSelect.value))} · ${cap} kWh`}if(t){t.textContent=label}else{E.currentModelBadge.textContent=label}}
+function pushRecentModel(value){if(!value||value==='custom')return;let arr=Array.isArray(S.recent)?S.recent.slice():[];arr=arr.filter(v=>v&&v!==value);arr.unshift(value);S.recent=arr.slice(0,3)}
+function renderRecentModels(){const arr=(Array.isArray(S.recent)?S.recent:[]).filter(v=>v&&v!==E.modelSelect.value);E.recentModels.innerHTML=arr.map(v=>`<button class="recent-chip" type="button" data-recent="${v}"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 8 12 12 15 14"/></svg>${shortLabel(getOptionLabel(v))}</button>`).join('')}
+function showToast(text){if(!text)return;E.toast.textContent=text;E.toast.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>E.toast.classList.remove('show'),1300)}
+function showErr(t){E.error.textContent=t||'';E.error.classList.toggle('show',!!t)}
+function setRisk(t){E.riskNote.textContent=t||'';E.riskNote.classList.toggle('show',!!t)}
+function applyDetail(){E.app.classList.toggle('detailed',!!S.detailed);E.toggleDetail.textContent=S.detailed?'簡化顯示':'詳細顯示'}
+function save(){S={...S,detailed:E.app.classList.contains('detailed'),mode:mode(),model:E.modelSelect.value,capacity:n(E.capacity),efficiency:n(E.efficiency),current:n(E.currentNumber),speed:n(E.speedNumber),cost:n(E.costNumber),recent:Array.isArray(S.recent)?S.recent:[]};if(mode()==='amount')S.amount=n(E.mainNumber);else S.target=n(E.mainNumber);localStorage.setItem(STORAGE_KEY,JSON.stringify(S))}
+function load(){try{const loaded=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');S={...S,...loaded}}catch{}E.modeAmount.checked=S.mode!=='target';E.modeTarget.checked=S.mode==='target';if([...E.modelSelect.options].some(o=>o.value===S.model)){E.modelSelect.value=S.model;E.modelSelectSettings.value=S.model}else{E.modelSelect.value='custom';E.modelSelectSettings.value='custom'}E.capacity.value=S.capacity;E.capacitySettings.value=S.capacity;E.efficiency.value=S.efficiency;E.currentNumber.value=S.current;E.currentRange.value=clamp(S.current,0,100);E.speedNumber.value=S.speed;E.speedRange.value=clamp(S.speed,1,350);E.costNumber.value=S.cost;E.costRange.value=clamp(S.cost,0,10);updateVehicleBadge();renderRecentModels();applyDetail()}
+function setModeUI(){if(mode()==='amount'){E.mainInputLabel.textContent='預計充電量';E.mainUnit.textContent='kWh';E.modeHint.textContent='先買 kWh → 估最終 %';E.mainRange.min='0';E.mainRange.max=String(Math.min(200,Math.max(120,Math.ceil(Number(S.amount)||50))));E.mainNumber.min='0';E.mainNumber.removeAttribute('max');E.mainNumber.step='0.1';E.mainNumber.value=String(S.amount);E.mainRange.value=String(clamp(S.amount,0,Number(E.mainRange.max)));{let mx=Number(E.mainRange.max)||120;E.mainTicks.innerHTML='<span>0</span><span>'+Math.round(mx/2)+'</span><span>'+mx+' kWh</span>'}}else{E.mainInputLabel.textContent='目標電量';E.mainUnit.textContent='%';E.modeHint.textContent='目標 % → 反計 kWh';E.mainRange.min='0';E.mainRange.max='100';E.mainNumber.min='0';E.mainNumber.max='100';E.mainNumber.step='0.1';E.mainNumber.value=String(S.target);E.mainRange.value=String(clamp(S.target,0,100));E.mainTicks.innerHTML='<span>0%</span><span>50%</span><span>100%</span>'}calc()}
+
+// ---- animated number roll-up + gauge fill ----
+const GAUGE_CIRC=2*Math.PI*52; // r=52
+function animateNum(el,to,dec){
+  if(!el)return;
+  const from=parseFloat((el.textContent||'').replace(/,/g,''))||0;
+  if(!Number.isFinite(to)){el.textContent='—';return}
+  const dur=520,t0=performance.now();
+  const ease=x=>1-Math.pow(1-x,3);
+  function step(t){
+    let p=Math.min(1,(t-t0)/dur);
+    let v=from+(to-from)*ease(p);
+    el.textContent=v.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+    if(p<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function setGauge(pct){
+  if(!E.gaugeFill)return;
+  let p=Number.isFinite(pct)?Math.max(0,Math.min(100,pct)):0;
+  E.gaugeFill.style.strokeDashoffset=String(GAUGE_CIRC*(1-p/100));
+}
+function calc(){let cap=n(E.capacity),eff=n(E.efficiency)/100,cur=n(E.currentNumber),x=n(E.mainNumber),speed=n(E.speedNumber),rate=n(E.costNumber);let err='',risk='',finalPct=NaN,batt=NaN,wall=NaN;E.capacitySettings.value=E.capacity.value;E.modelSelectSettings.value=E.modelSelect.value;if(!cap||cap<=0)err='請輸入有效電池容量。';else if(!eff||eff<=0||eff>1)err='充電效率需介乎 1% 至 100%。';else if(cur<0||cur>100||!Number.isFinite(cur))err='目前電量需介乎 0% 至 100%。';else if(!speed||speed<=0)err='充電速度需大於 0 kW。';else if(rate<0||!Number.isFinite(rate))err='電費單價不可少於 0。';else if(x<0||!Number.isFinite(x))err='請輸入有效數值。';if(!err&&mode()==='amount'){wall=x;batt=wall*eff;finalPct=cur+batt/cap*100;if(finalPct>100)err='預計最終電量超過 100%。'}if(!err&&mode()==='target'){if(x>100)err='目標電量需介乎 0% 至 100%。';else if(x<cur)err='目標電量低於目前電量。';else{finalPct=x;batt=cap*(x-cur)/100;wall=batt/eff}}if(!err){if(finalPct>=95)risk='接近滿電，尾段會較慢';else if(finalPct>=90)risk='高電量區間充電較慢'}showErr(err);setRisk(err?'':risk);let hours=wall/speed,cost=wall*rate;if(err){E.finalPct.textContent='—';setGauge(0);E.wallKwhHero.textContent='—';E.batteryKwh.textContent='—';E.duration.textContent='—';E.finishTime.textContent='—';E.totalCost.textContent='—';E.updatedTime.textContent='更新時間：--:--';return}animateNum(E.finalPct,finalPct,1);setGauge(finalPct);animateNum(E.wallKwhHero,wall,1);E.batteryKwh.textContent=fmt(batt,2);E.duration.textContent=dur(hours);E.finishTime.textContent=finish(hours);E.totalCost.textContent=fmt(cost,2);E.updatedTime.textContent='更新時間：'+new Date().toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'});updateVehicleBadge();renderRecentModels();save()}
+function syncRangeInput(range,input,expandMax=false,hardMax=null){range.addEventListener('input',()=>{input.value=range.value;calc()});input.addEventListener('input',()=>{let v=n(input);if(Number.isFinite(v)){if(expandMax&&v>Number(range.max)){let nm=Math.ceil(v);if(hardMax!=null)nm=Math.min(nm,hardMax);range.max=nm}range.value=clamp(v,Number(range.min),Number(range.max))}calc()});input.addEventListener('focus',()=>input.select())}
+function pop(btn,key){const d=info[key];if(!d)return;E.popTitle.textContent=d[0];E.popText.textContent=d[1];E.popover.classList.add('open');const r=btn.getBoundingClientRect();const pr=E.popover.getBoundingClientRect();let l=Math.max(14,Math.min(r.left+r.width/2-pr.width/2,innerWidth-pr.width-14));let t=r.bottom+8;if(t+pr.height>innerHeight-14)t=Math.max(14,r.top-pr.height-8);E.popover.style.left=l+'px';E.popover.style.top=t+'px'}
+function setModelCustom(){E.modelSelect.value='custom';E.modelSelectSettings.value='custom';S.model='custom'}
+function applyCapacityValue(v,markCustom=true){if(!Number.isFinite(Number(v)))return;E.capacity.value=v;E.capacitySettings.value=v;if(markCustom)setModelCustom();calc()}
+function applyModelFrom(selectEl,silent=false){const value=selectEl.value;const option=selectEl.options[selectEl.selectedIndex];const c=option.dataset.capacity;S.model=value;E.modelSelect.value=value;E.modelSelectSettings.value=value;if(c){E.capacity.value=c;E.capacitySettings.value=c}pushRecentModel(value);calc();if(!silent)showToast('已切換：'+shortLabel(currentModelLabel()))}
+function calcCalib(){let start=n(E.calibStart),end=n(E.calibEnd),kwh=n(E.calibKwh),eff=n(E.calibEff)/100,base=n(E.capacity);let delta=end-start;let valid=Number.isFinite(start)&&Number.isFinite(end)&&Number.isFinite(kwh)&&Number.isFinite(eff)&&delta>0&&start>=0&&end<=100&&kwh>0&&eff>0&&eff<=1;if(!valid){E.calibCapacity.textContent='—';E.calibRatio.textContent='—';E.calibDelta.textContent='—';E.calibConfidence.textContent='請輸入有效充電紀錄。';E.applyCalibCapacity.disabled=true;return NaN}let capacity=(kwh*eff)/(delta/100);let ratio=capacity/base*100;E.calibCapacity.textContent=fmt(capacity,1);E.calibRatio.textContent=fmt(ratio,1);E.calibDelta.textContent=fmt(delta,1);let msg='';if(delta<20)msg='可信度偏低：SOC 差距太細。';else if(delta<50)msg='可信度中等：可作粗略估算。';else msg='可信度較高：較適合作容量估算。';if(start<10||end>90)msg+=' 接近低 / 高電量區間可能有誤差。';E.calibConfidence.textContent=msg;E.applyCalibCapacity.disabled=false;return capacity}
+syncRangeInput(E.currentRange,E.currentNumber);syncRangeInput(E.mainRange,E.mainNumber,true,200);syncRangeInput(E.speedRange,E.speedNumber);syncRangeInput(E.costRange,E.costNumber,true,20);
+E.toggleDetail.onclick=()=>{S.detailed=!E.app.classList.contains('detailed');applyDetail();save()};
+E.modeAmount.onchange=()=>{S.mode='amount';setModeUI()};E.modeTarget.onchange=()=>{S.mode='target';setModeUI()};
+E.modelSelect.onchange=()=>applyModelFrom(E.modelSelect);E.modelSelectSettings.onchange=()=>applyModelFrom(E.modelSelectSettings);
+E.recentModels.onclick=e=>{const btn=e.target.closest('[data-recent]');if(!btn)return;E.modelSelect.value=btn.dataset.recent;applyModelFrom(E.modelSelect)};
+E.capacity.oninput=()=>applyCapacityValue(E.capacity.value,true);E.capacitySettings.oninput=()=>applyCapacityValue(E.capacitySettings.value,true);E.efficiency.oninput=calc;
+E.openSettings.onclick=()=>{E.modelSelectSettings.value=E.modelSelect.value;E.capacitySettings.value=E.capacity.value;E.settingsBg.classList.add('open')};E.closeSettings.onclick=()=>{E.settingsBg.classList.remove('open');calc()};E.settingsBg.onclick=e=>{if(e.target===E.settingsBg){E.settingsBg.classList.remove('open');calc()}};
+E.openCalib.onclick=()=>{E.calibEff.value=E.efficiency.value;E.calibBg.classList.add('open');calcCalib()};E.closeCalib.onclick=()=>{E.calibBg.classList.remove('open')};E.calibBg.onclick=e=>{if(e.target===E.calibBg)E.calibBg.classList.remove('open')};[E.calibStart,E.calibEnd,E.calibKwh,E.calibEff].forEach(el=>el.oninput=calcCalib);E.applyCalibCapacity.onclick=()=>{let cap=calcCalib();if(Number.isFinite(cap)){applyCapacityValue(fmt(cap,1),true);E.calibBg.classList.remove('open');showToast('已更新電池容量')}};
+document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{E.speedNumber.value=b.dataset.speed;E.speedRange.value=b.dataset.speed;calc()});document.querySelectorAll('[data-cost]').forEach(b=>b.onclick=()=>{E.costNumber.value=b.dataset.cost;E.costRange.value=Math.min(10,Number(b.dataset.cost));calc()});document.querySelectorAll('.info').forEach(b=>b.onclick=e=>{e.stopPropagation();pop(b,b.dataset.info)});document.addEventListener('click',e=>{if(!E.popover.contains(e.target))E.popover.classList.remove('open')});
+let helpPage=0;function showHelpPage(i){helpPage=(i+3)%3;document.querySelectorAll('.help-page').forEach((p,idx)=>p.classList.toggle('active',idx===helpPage));document.querySelectorAll('.help-dot').forEach((d,idx)=>d.classList.toggle('active',idx===helpPage));E.helpPrev.disabled=helpPage===0;E.helpNext.textContent=helpPage===2?'完成':'下一頁'}E.openHelp.onclick=()=>{E.helpBg.classList.add('open');showHelpPage(0)};E.closeHelp.onclick=()=>E.helpBg.classList.remove('open');E.helpBg.onclick=e=>{if(e.target===E.helpBg)E.helpBg.classList.remove('open')};E.helpPrev.onclick=()=>showHelpPage(helpPage-1);E.helpNext.onclick=()=>{if(helpPage===2)E.helpBg.classList.remove('open');else showHelpPage(helpPage+1)};
+
+// ---- theme toggle (persisted) ----
+(function(){
+  const KEY='evcalc_theme';
+  const root=document.documentElement;
+  const btn=document.getElementById('themeToggle');
+  const SUN='<svg class=\"ic\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"4.2\"/><path d=\"M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19\"/></svg>';
+  const MOON='<svg class=\"ic\" viewBox=\"0 0 24 24\"><path d=\"M21 12.8A8.5 8.5 0 1 1 11.2 3 6.6 6.6 0 0 0 21 12.8z\"/></svg>';
+  function apply(t){
+    if(t==='light'){root.setAttribute('data-theme','light');if(btn)btn.innerHTML=SUN;}
+    else{root.removeAttribute('data-theme');if(btn)btn.innerHTML=MOON;}
+  }
+  let saved=null;try{saved=localStorage.getItem(KEY)}catch(e){}
+  apply(saved||'dark');
+  if(btn)btn.addEventListener('click',function(){
+    const now=root.getAttribute('data-theme')==='light'?'dark':'light';
+    apply(now);try{localStorage.setItem(KEY,now)}catch(e){}
+  });
+})();
+
+load();setModeUI();
+</script>
+</body>
+</html>
