@@ -38,7 +38,7 @@
   --t1-accent:#4da3ff;    /* TIER 1 accent: validate/primary numbers */
   --t2:#dfe5ef;           /* TIER 2: card titles / field names (mid-bright) */
   --t3:#8b93a6;           /* TIER 3: descriptions / hints (clearly dimmer) */
-  --t4:#646c80;           /* TIER 4: footnotes / units / timestamps (faintest) */
+  --t4:#7f899e;           /* TIER 4: footnotes / units / timestamps */
   /* legacy aliases mapped onto tiers */
   --text:#dfe5ef;         /* default body == tier2 */
   --muted:#8b93a6;        /* == tier3 */
@@ -79,7 +79,7 @@
   --t1-accent:#0a6fe0;
   --t2:#33415c;           /* titles - dark slate */
   --t3:#6b7588;           /* descriptions - mid grey */
-  --t4:#97a0b2;           /* faint */
+  --t4:#667085;           /* footnotes / units / timestamps */
   --text:#33415c;
   --muted:#6b7588;
   --muted2:#4c5972;
@@ -180,7 +180,7 @@ h1{margin:0 0 2px;font-family:var(--font-display);font-size:23px;line-height:1.0
 .card{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);overflow:hidden;margin-bottom:9px}
 .card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--line)}
 .card-title{font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--t2)}
-.card-note{font-size:12px;color:var(--t3)}
+.card-note{font-size:13px;color:var(--t3)}
 
 .btn-small,.toggle-btn{
   border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);
@@ -230,8 +230,9 @@ h1{margin:0 0 2px;font-family:var(--font-display);font-size:23px;line-height:1.0
 .ico .ic{width:16px;height:16px}
 .row-label{display:flex;align-items:center;gap:5px}
 .field{font-size:14px;font-weight:680;line-height:1.2;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.info{border:0;background:transparent;color:var(--faint);width:20px;height:20px;border-radius:var(--r-pill);padding:0;display:inline-grid;place-items:center;flex:0 0 auto}
+.info{border:0;background:transparent;color:var(--faint);width:32px;height:32px;border-radius:var(--r-pill);padding:0;display:inline-grid;place-items:center;flex:0 0 auto}
 .info .ic{width:15px;height:15px}
+.info:focus-visible,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .valuebox{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;padding:0 9px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface-2)}
 .valuebox input,.control input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-weight:700;appearance:textfield;-moz-appearance:textfield}
 .valuebox input{font-size:17px;font-weight:800;padding:8px 0;text-align:right;color:var(--t1)}
@@ -241,10 +242,10 @@ h1{margin:0 0 2px;font-family:var(--font-display);font-size:23px;line-height:1.0
 .range-block,.chips,.detail-only{display:none}
 .app.detailed .range-block{display:block}.app.detailed .chips{display:flex}.app.detailed .detail-only{display:grid}.app.detailed .row-label{margin-bottom:6px}
 input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--accent)}
-.ticks{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);line-height:1;margin-top:2px}
+.ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--t3);line-height:1.2;margin-top:2px}
 .chips{gap:6px;overflow:auto;scrollbar-width:none;margin-top:8px;padding-bottom:1px}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;border:1px solid var(--line-2);background:var(--surface-2);color:var(--muted2);border-radius:var(--r-pill);padding:7px 11px;font-size:12px;font-weight:600}
+.chip{flex:0 0 auto;min-height:38px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--muted2);border-radius:var(--r-pill);padding:8px 12px;font-size:12.5px;font-weight:600}
 .chip:active{background:var(--surface-3)}
 
 /* ===== OUTPUT CARD — the ONE place glass is used for emphasis ===== */
@@ -263,10 +264,18 @@ input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--a
 .gauge-wrap{position:relative;width:128px;height:128px;flex-shrink:0;filter:drop-shadow(0 0 18px rgba(10,132,255,.28))}
 .gauge{width:128px;height:128px;transform:rotate(-90deg)}
 .gauge-track{fill:none;stroke:rgba(255,255,255,.08);stroke-width:9}
-.gauge-fill{fill:none;stroke:url(#gaugeGrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)}
+.gauge-fill{fill:none;stroke:url(#gaugeGrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1),stroke .25s ease}
+.gauge-fill[data-level="critical"]{stroke:#ff453a}
+.gauge-fill[data-level="low"]{stroke:#ff9f0a}
+.gauge-fill[data-level="healthy"]{stroke:#30d158}
+.gauge-fill[data-level="near-full"]{stroke:#0a84ff}
 .gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .gauge-label{font-size:10.5px;font-weight:600;color:var(--t3);letter-spacing:.04em;margin-bottom:1px}
 .gauge-num{font-family:var(--font-display);font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:.9;color:#4da3ff}
+.gauge-num[data-level="critical"]{color:#ff453a}
+.gauge-num[data-level="low"]{color:#ff9f0a}
+.gauge-num[data-level="healthy"]{color:#30d158}
+.gauge-num[data-level="near-full"]{color:#0a84ff}
 .gauge-num small{color:var(--t3)}
 .gauge-num small{font-size:14px;color:var(--muted2);font-weight:700;margin-left:1px}
 .hero-side{display:grid;gap:8px;min-width:0}
@@ -317,7 +326,7 @@ input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--a
 .apply-capacity:active{background:var(--accent-press)}
 .apply-capacity:disabled{opacity:.4}
 .confidence{color:var(--muted2);font-size:13px;line-height:1.45}
-.footnote{color:var(--t4);font-size:11px;line-height:1.4;padding:0 2px 4px}
+.footnote{color:var(--t3);font-size:12px;line-height:1.5;padding:0 2px 4px}
 
 /* ===== HELP ===== */
 .help-pages{position:relative;min-height:360px}
@@ -442,15 +451,15 @@ input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--a
 </section>
 
 <section class="mode-card card"><div class="card-head"><div><div class="card-title">計算模式</div><div class="card-note" id="modeHint">先買 kWh → 估最終 %</div></div></div><section class="mode"><div><input id="modeAmount" name="mode" type="radio" checked><label for="modeAmount">輸入 kWh → 最終 %</label></div><div><input id="modeTarget" name="mode" type="radio"><label for="modeTarget">目標 % → 所需 kWh</label></div></section></section>
-<div class="error" id="error"></div>
+<div class="error" id="error" role="status" aria-live="polite" aria-atomic="true"></div>
 <section class="card" id="inputPanel"><div class="card-head"><div><div class="card-title">輸入</div><div class="card-note">預設只顯示核心欄位</div></div><button class="toggle-btn" id="toggleDetail" type="button">詳細顯示</button></div>
-<div class="input-item"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="8" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="15"/><line x1="6" y1="11" x2="6" y2="15"/></svg></div><div><div class="row-label"><div class="field">目前電量</div><button class="info" type="button" data-info="current"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="currentRange" type="range" min="0" max="100" step="1" value="28"><div class="ticks"><span>0%</span><span>50%</span><span>100%</span></div></div></div><div class="valuebox"><input id="currentNumber" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="28"><span class="unit">%</span></div></div>
-<div class="input-item"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M9 3v6M15 3v6"/><path d="M6 9h12v3a6 6 0 0 1-12 0z"/><line x1="12" y1="18" x2="12" y2="22"/></svg></div><div><div class="row-label"><div class="field" id="mainInputLabel">預計充電量</div><button class="info" type="button" data-info="main"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="mainRange" type="range" min="0" max="120" step="1" value="50"><div class="ticks" id="mainTicks"><span>0</span><span>60</span><span>120 kWh</span></div></div></div><div class="valuebox"><input id="mainNumber" type="number" inputmode="decimal" min="0" step="0.1" value="50"><span class="unit" id="mainUnit">kWh</span></div></div>
-<div class="input-item detail-only"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg></div><div><div class="row-label"><div class="field">充電速度</div><button class="info" type="button" data-info="speed"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="speedRange" type="range" min="1" max="350" step="1" value="11"><div class="ticks"><span>1</span><span>175</span><span>350 kW</span></div></div><div class="chips"><button class="chip" data-speed="7" type="button">7 kW</button><button class="chip" data-speed="11" type="button">11 kW</button><button class="chip" data-speed="50" type="button">50 kW</button><button class="chip" data-speed="100" type="button">100 kW</button></div></div><div class="valuebox"><input id="speedNumber" type="number" inputmode="decimal" min="0.1" step="0.1" value="11"><span class="unit">kW</span></div></div>
-<div class="input-item detail-only"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6.5C17 4.6 14.8 4 12 4S7 4.9 7 7.5 9.7 11 12 11s5 .8 5 3.5S14.2 18 12 18s-5-.6-5-2.5"/></svg></div><div><div class="row-label"><div class="field">電費單價</div><button class="info" type="button" data-info="cost"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="costRange" type="range" min="0" max="10" step="0.1" value="1.7"><div class="ticks"><span>0</span><span>5</span><span>10</span></div></div><div class="chips"><button class="chip" data-cost="0" type="button">免費</button><button class="chip" data-cost="1.7" type="button">HK$1.7</button><button class="chip" data-cost="2.4" type="button">HK$2.4</button><button class="chip" data-cost="3" type="button">HK$3.0</button><button class="chip" data-cost="4" type="button">HK$4.0</button></div></div><div class="valuebox costbox"><input id="costNumber" type="number" inputmode="decimal" min="0" step="0.01" value="1.7"><span class="unit">$/kWh</span></div></div>
+<div class="input-item"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="8" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="15"/><line x1="6" y1="11" x2="6" y2="15"/></svg></div><div><div class="row-label"><div class="field">目前電量</div><button class="info" type="button" data-info="current" aria-label="目前電量說明"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="currentRange" type="range" aria-label="目前電量" min="0" max="100" step="1" value="28"><div class="ticks"><span>0%</span><span>50%</span><span>100%</span></div></div></div><div class="valuebox"><input id="currentNumber" type="number" aria-label="目前電量" inputmode="decimal" min="0" max="100" step="0.1" value="28"><span class="unit">%</span></div></div>
+<div class="input-item"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M9 3v6M15 3v6"/><path d="M6 9h12v3a6 6 0 0 1-12 0z"/><line x1="12" y1="18" x2="12" y2="22"/></svg></div><div><div class="row-label"><div class="field" id="mainInputLabel">預計充電量</div><button class="info" type="button" data-info="main" aria-label="主要輸入說明"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="mainRange" type="range" aria-labelledby="mainInputLabel" min="0" max="120" step="1" value="50"><div class="ticks" id="mainTicks"><span>0</span><span>60</span><span>120 kWh</span></div></div></div><div class="valuebox"><input id="mainNumber" type="number" aria-labelledby="mainInputLabel" inputmode="decimal" min="0" step="0.1" value="50"><span class="unit" id="mainUnit">kWh</span></div></div>
+<div class="input-item detail-only"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg></div><div><div class="row-label"><div class="field">充電速度</div><button class="info" type="button" data-info="speed" aria-label="充電速度說明"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="speedRange" type="range" aria-label="充電速度" min="1" max="350" step="1" value="11"><div class="ticks"><span>1</span><span>175</span><span>350 kW</span></div></div><div class="chips"><button class="chip" data-speed="7" type="button">7 kW</button><button class="chip" data-speed="11" type="button">11 kW</button><button class="chip" data-speed="50" type="button">50 kW</button><button class="chip" data-speed="100" type="button">100 kW</button></div></div><div class="valuebox"><input id="speedNumber" type="number" aria-label="充電速度" inputmode="decimal" min="0.1" step="0.1" value="11"><span class="unit">kW</span></div></div>
+<div class="input-item detail-only"><div class="ico"><svg class="ic" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6.5C17 4.6 14.8 4 12 4S7 4.9 7 7.5 9.7 11 12 11s5 .8 5 3.5S14.2 18 12 18s-5-.6-5-2.5"/></svg></div><div><div class="row-label"><div class="field">電費單價</div><button class="info" type="button" data-info="cost" aria-label="電費單價說明"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg></button></div><div class="range-block"><input id="costRange" type="range" aria-label="電費單價" min="0" max="10" step="0.1" value="1.7"><div class="ticks"><span>0</span><span>5</span><span>10</span></div></div><div class="chips"><button class="chip" data-cost="0" type="button">免費</button><button class="chip" data-cost="1.7" type="button">HK$1.7</button><button class="chip" data-cost="2.4" type="button">HK$2.4</button><button class="chip" data-cost="3" type="button">HK$3.0</button><button class="chip" data-cost="4" type="button">HK$4.0</button></div></div><div class="valuebox costbox"><input id="costNumber" type="number" aria-label="電費單價" inputmode="decimal" min="0" step="0.01" value="1.7"><span class="unit">$/kWh</span></div></div>
 </section>
 <section class="output-card"><div class="output-head"><div class="card-title">輸出</div><div class="updated" id="updatedTime">更新時間：--:--</div></div><div class="hero">
-  <div class="gauge-wrap">
+  <div class="gauge-wrap" id="gaugeWrap">
     <svg class="gauge" viewBox="0 0 120 120" aria-hidden="true">
       <defs>
         <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -463,7 +472,7 @@ input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--a
     </svg>
     <div class="gauge-center">
       <div class="gauge-label">最終電量</div>
-      <div class="gauge-num"><span id="finalPct">87.1</span><small>%</small></div>
+      <div class="gauge-num" id="gaugeNum"><span id="finalPct">87.1</span><small>%</small></div>
     </div>
   </div>
   <div class="hero-side">
@@ -586,6 +595,7 @@ input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--a
 <script>
 const $=id=>document.getElementById(id);
 const E={app:$('app'),toast:$('toast'),toggleDetail:$('toggleDetail'),modeAmount:$('modeAmount'),modeTarget:$('modeTarget'),modeHint:$('modeHint'),error:$('error'),updatedTime:$('updatedTime'),modelSelect:$('modelSelect'),modelSelectSettings:$('modelSelectSettings'),currentModelBadge:$('currentModelBadge'),recentModels:$('recentModels'),capacity:$('capacity'),capacitySettings:$('capacitySettings'),efficiency:$('efficiency'),openHelp:$('openHelp'),helpBg:$('helpBg'),closeHelp:$('closeHelp'),helpPrev:$('helpPrev'),helpNext:$('helpNext'),openSettings:$('openSettings'),settingsBg:$('settingsBg'),closeSettings:$('closeSettings'),finalPct:$('finalPct'),gaugeFill:$('gaugeFill'),wallKwhHero:$('wallKwhHero'),batteryKwh:$('batteryKwh'),duration:$('duration'),finishTime:$('finishTime'),totalCost:$('totalCost'),riskNote:$('riskNote'),currentRange:$('currentRange'),currentNumber:$('currentNumber'),mainRange:$('mainRange'),mainNumber:$('mainNumber'),mainInputLabel:$('mainInputLabel'),mainUnit:$('mainUnit'),mainTicks:$('mainTicks'),speedRange:$('speedRange'),speedNumber:$('speedNumber'),costRange:$('costRange'),costNumber:$('costNumber'),popover:$('popover'),popTitle:$('popTitle'),popText:$('popText'),openCalib:$('openCalib'),calibBg:$('calibBg'),closeCalib:$('closeCalib'),calibStart:$('calibStart'),calibEnd:$('calibEnd'),calibKwh:$('calibKwh'),calibEff:$('calibEff'),calibCapacity:$('calibCapacity'),calibRatio:$('calibRatio'),calibDelta:$('calibDelta'),calibConfidence:$('calibConfidence'),applyCalibCapacity:$('applyCalibCapacity')};
+E.riskNote.setAttribute('role','status');E.riskNote.setAttribute('aria-live','polite');E.riskNote.setAttribute('aria-atomic','true');
 let S={detailed:false,mode:'amount',model:'tesla-model-3-lr',capacity:78.1,efficiency:100,current:28,amount:50,target:80,speed:11,cost:1.7,recent:['tesla-model-3-lr']};
 const STORAGE_KEY='ev-calculator-v22';
 const info={wall:['預計充電量','指充電器計費或預購的 kWh。此數值通常已包含充電損耗，因此會高於電池實際增加電量。'],current:['目前電量','車機或儀錶板顯示的目前電池百分比（SOC）。'],main:['主要輸入','輸入 kWh 可估算最終電量；輸入目標 % 可反推所需 kWh。'],speed:['充電速度','建議輸入實際平均功率。時間只作估算。'],cost:['電費單價','費用只供參考。'],calibGuide:['點樣做估算','用同一次充電紀錄輸入：充電前%、充電後%、充電器顯示或收費 kWh。建議用較大範圍，例如 20% → 80% 或 10% → 90%。'],calibStart:['充電前電量','開始充電前，記低車機顯示的電量百分比。'],calibEnd:['充電後電量','充電完成後，記低車機顯示的電量百分比。SOC 差距太細會較唔準。'],calibKwh:['充電器計費電量','填充電器、充電站 app 或帳單顯示的 kWh。'],calibEff:['充電效率','用來把充電器計費 kWh 折算成電池實際增加電量。未有實測時可先用 100%。'],calibResult:['估算結果','此數值是按車機 SOC 作線性近似的目前可用容量。']};
@@ -626,12 +636,18 @@ function animateNum(el,to,dec){
   }
   requestAnimationFrame(step);
 }
-function setGauge(pct){
+function gaugeLevel(p){if(p<20)return'critical';if(p<50)return'low';if(p<80)return'healthy';return'near-full'}
+function setGauge(pct,levelOverride){
   if(!E.gaugeFill)return;
   let p=Number.isFinite(pct)?Math.max(0,Math.min(100,pct)):0;
+  let level=levelOverride||gaugeLevel(p);
   E.gaugeFill.style.strokeDashoffset=String(GAUGE_CIRC*(1-p/100));
+  E.gaugeFill.dataset.level=level;
+  const gaugeWrap=$('gaugeWrap'),gaugeNum=$('gaugeNum');
+  if(gaugeWrap)gaugeWrap.dataset.level=level;
+  if(gaugeNum)gaugeNum.dataset.level=level;
 }
-function calc(){let cap=n(E.capacity),eff=n(E.efficiency)/100,cur=n(E.currentNumber),x=n(E.mainNumber),speed=n(E.speedNumber),rate=n(E.costNumber);let err='',risk='',finalPct=NaN,batt=NaN,wall=NaN;E.capacitySettings.value=E.capacity.value;E.modelSelectSettings.value=E.modelSelect.value;if(!cap||cap<=0)err='請輸入有效電池容量。';else if(!eff||eff<=0||eff>1)err='充電效率需介乎 1% 至 100%。';else if(cur<0||cur>100||!Number.isFinite(cur))err='目前電量需介乎 0% 至 100%。';else if(!speed||speed<=0)err='充電速度需大於 0 kW。';else if(rate<0||!Number.isFinite(rate))err='電費單價不可少於 0。';else if(x<0||!Number.isFinite(x))err='請輸入有效數值。';if(!err&&mode()==='amount'){wall=x;batt=wall*eff;finalPct=cur+batt/cap*100;if(finalPct>100)err='預計最終電量超過 100%。'}if(!err&&mode()==='target'){if(x>100)err='目標電量需介乎 0% 至 100%。';else if(x<cur)err='目標電量低於目前電量。';else{finalPct=x;batt=cap*(x-cur)/100;wall=batt/eff}}if(!err){if(finalPct>=95)risk='接近滿電，尾段會較慢';else if(finalPct>=90)risk='高電量區間充電較慢'}showErr(err);setRisk(err?'':risk);let hours=wall/speed,cost=wall*rate;if(err){E.finalPct.textContent='—';setGauge(0);E.wallKwhHero.textContent='—';E.batteryKwh.textContent='—';E.duration.textContent='—';E.finishTime.textContent='—';E.totalCost.textContent='—';E.updatedTime.textContent='更新時間：--:--';return}animateNum(E.finalPct,finalPct,1);setGauge(finalPct);animateNum(E.wallKwhHero,wall,1);E.batteryKwh.textContent=fmt(batt,2);E.duration.textContent=dur(hours);E.finishTime.textContent=finish(hours);E.totalCost.textContent=fmt(cost,2);E.updatedTime.textContent='更新時間：'+new Date().toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'});updateVehicleBadge();renderRecentModels();save()}
+function calc(){let cap=n(E.capacity),eff=n(E.efficiency)/100,cur=n(E.currentNumber),x=n(E.mainNumber),speed=n(E.speedNumber),rate=n(E.costNumber);let err='',risk='',finalPct=NaN,batt=NaN,wall=NaN;E.capacitySettings.value=E.capacity.value;E.modelSelectSettings.value=E.modelSelect.value;if(!cap||cap<=0)err='請輸入有效電池容量。';else if(!eff||eff<=0||eff>1)err='充電效率需介乎 1% 至 100%。';else if(cur<0||cur>100||!Number.isFinite(cur))err='目前電量需介乎 0% 至 100%。';else if(!speed||speed<=0)err='充電速度需大於 0 kW。';else if(rate<0||!Number.isFinite(rate))err='電費單價不可少於 0。';else if(x<0||!Number.isFinite(x))err='請輸入有效數值。';if(!err&&mode()==='amount'){wall=x;batt=wall*eff;finalPct=cur+batt/cap*100;if(finalPct>100)err='預計最終電量超過 100%。'}if(!err&&mode()==='target'){if(x>100)err='目標電量需介乎 0% 至 100%。';else if(x<cur)err='目標電量低於目前電量。';else{finalPct=x;batt=cap*(x-cur)/100;wall=batt/eff}}if(!err){if(finalPct>=95)risk='接近滿電，尾段會較慢';else if(finalPct>=90)risk='高電量區間充電較慢'}showErr(err);setRisk(err?'':risk);let hours=wall/speed,cost=wall*rate;if(err){E.finalPct.textContent='—';setGauge(0,'neutral');E.wallKwhHero.textContent='—';E.batteryKwh.textContent='—';E.duration.textContent='—';E.finishTime.textContent='—';E.totalCost.textContent='—';E.updatedTime.textContent='更新時間：--:--';return}animateNum(E.finalPct,finalPct,1);setGauge(finalPct);animateNum(E.wallKwhHero,wall,1);E.batteryKwh.textContent=fmt(batt,2);E.duration.textContent=dur(hours);E.finishTime.textContent=finish(hours);E.totalCost.textContent=fmt(cost,2);E.updatedTime.textContent='更新時間：'+new Date().toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'});updateVehicleBadge();renderRecentModels();save()}
 function syncRangeInput(range,input,expandMax=false,hardMax=null){range.addEventListener('input',()=>{input.value=range.value;calc()});input.addEventListener('input',()=>{let v=n(input);if(Number.isFinite(v)){if(expandMax&&v>Number(range.max)){let nm=Math.ceil(v);if(hardMax!=null)nm=Math.min(nm,hardMax);range.max=nm}range.value=clamp(v,Number(range.min),Number(range.max))}calc()});input.addEventListener('focus',()=>input.select())}
 function pop(btn,key){const d=info[key];if(!d)return;E.popTitle.textContent=d[0];E.popText.textContent=d[1];E.popover.classList.add('open');const r=btn.getBoundingClientRect();const pr=E.popover.getBoundingClientRect();let l=Math.max(14,Math.min(r.left+r.width/2-pr.width/2,innerWidth-pr.width-14));let t=r.bottom+8;if(t+pr.height>innerHeight-14)t=Math.max(14,r.top-pr.height-8);E.popover.style.left=l+'px';E.popover.style.top=t+'px'}
 function setModelCustom(){E.modelSelect.value='custom';E.modelSelectSettings.value='custom';S.model='custom'}
@@ -646,7 +662,7 @@ E.recentModels.onclick=e=>{const btn=e.target.closest('[data-recent]');if(!btn)r
 E.capacity.oninput=()=>applyCapacityValue(E.capacity.value,true);E.capacitySettings.oninput=()=>applyCapacityValue(E.capacitySettings.value,true);E.efficiency.oninput=calc;
 E.openSettings.onclick=()=>{E.modelSelectSettings.value=E.modelSelect.value;E.capacitySettings.value=E.capacity.value;E.settingsBg.classList.add('open')};E.closeSettings.onclick=()=>{E.settingsBg.classList.remove('open');calc()};E.settingsBg.onclick=e=>{if(e.target===E.settingsBg){E.settingsBg.classList.remove('open');calc()}};
 E.openCalib.onclick=()=>{E.calibEff.value=E.efficiency.value;E.calibBg.classList.add('open');calcCalib()};E.closeCalib.onclick=()=>{E.calibBg.classList.remove('open')};E.calibBg.onclick=e=>{if(e.target===E.calibBg)E.calibBg.classList.remove('open')};[E.calibStart,E.calibEnd,E.calibKwh,E.calibEff].forEach(el=>el.oninput=calcCalib);E.applyCalibCapacity.onclick=()=>{let cap=calcCalib();if(Number.isFinite(cap)){applyCapacityValue(fmt(cap,1),true);E.calibBg.classList.remove('open');showToast('已更新電池容量')}};
-document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{E.speedNumber.value=b.dataset.speed;E.speedRange.value=b.dataset.speed;calc()});document.querySelectorAll('[data-cost]').forEach(b=>b.onclick=()=>{E.costNumber.value=b.dataset.cost;E.costRange.value=Math.min(10,Number(b.dataset.cost));calc()});document.querySelectorAll('.info').forEach(b=>b.onclick=e=>{e.stopPropagation();pop(b,b.dataset.info)});document.addEventListener('click',e=>{if(!E.popover.contains(e.target))E.popover.classList.remove('open')});
+document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{E.speedNumber.value=b.dataset.speed;E.speedRange.value=b.dataset.speed;calc()});document.querySelectorAll('[data-cost]').forEach(b=>b.onclick=()=>{E.costNumber.value=b.dataset.cost;E.costRange.value=Math.min(10,Number(b.dataset.cost));calc()});document.querySelectorAll('.info').forEach(b=>{b.setAttribute('aria-label',(info[b.dataset.info]?.[0]||'資料')+'說明');b.onclick=e=>{e.stopPropagation();pop(b,b.dataset.info)}});document.addEventListener('click',e=>{if(!E.popover.contains(e.target))E.popover.classList.remove('open')});
 let helpPage=0;function showHelpPage(i){helpPage=(i+3)%3;document.querySelectorAll('.help-page').forEach((p,idx)=>p.classList.toggle('active',idx===helpPage));document.querySelectorAll('.help-dot').forEach((d,idx)=>d.classList.toggle('active',idx===helpPage));E.helpPrev.disabled=helpPage===0;E.helpNext.textContent=helpPage===2?'完成':'下一頁'}E.openHelp.onclick=()=>{E.helpBg.classList.add('open');showHelpPage(0)};E.closeHelp.onclick=()=>E.helpBg.classList.remove('open');E.helpBg.onclick=e=>{if(e.target===E.helpBg)E.helpBg.classList.remove('open')};E.helpPrev.onclick=()=>showHelpPage(helpPage-1);E.helpNext.onclick=()=>{if(helpPage===2)E.helpBg.classList.remove('open');else showHelpPage(helpPage+1)};
 
 // ---- theme toggle (persisted) ----
