@@ -2,6 +2,12 @@
 
 A small browser-based EV charging calculator (EV 充電計算器). All logic runs entirely in the browser.
 
+## Project status
+
+This project has reached a practical, stable version suitable for ongoing use. Active feature development is paused for now so the calculator can remain simple and reliable over the long term.
+
+Maintenance will focus on keeping the existing tool available and working, including essential bug fixes, browser compatibility updates, security-related maintenance, and hosting recovery when needed. New feature development will resume only when there is a clear practical requirement.
+
 ## Live site
 
 - **GitHub Pages (primary):** https://kenchan-pixel.github.io/ev-charge/
