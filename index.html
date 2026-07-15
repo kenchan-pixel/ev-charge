@@ -49,6 +49,10 @@
   /* ---- semantic (used sparingly, only where meaning needs it) ---- */
   --good:#30d158;
   --warn:#ffd60a;
+  --gauge-critical:#ff453a;
+  --gauge-low:#ff9f0a;
+  --gauge-healthy:#30d158;
+  --gauge-near-full:#0a84ff;
 
   /* ---- shape tokens ---- */
   --r-lg:16px;
@@ -87,6 +91,11 @@
   --text-strong:#0b1626;
   --good:#178a43;
   --warn:#a8730a;
+  /* Darker semantic colours keep the 34px result readable on the light output card. */
+  --gauge-critical:#c62828;
+  --gauge-low:#9a4d00;
+  --gauge-healthy:#1b6e36;
+  --gauge-near-full:#0757a8;
 }
 [data-theme="light"] body{
   background:
@@ -264,18 +273,18 @@ input[type=range]{width:100%;min-height:25px;margin:7px 0 0;accent-color:var(--a
 .gauge-wrap{position:relative;width:128px;height:128px;flex-shrink:0;filter:drop-shadow(0 0 18px rgba(10,132,255,.28))}
 .gauge{width:128px;height:128px;transform:rotate(-90deg)}
 .gauge-track{fill:none;stroke:rgba(255,255,255,.08);stroke-width:9}
-.gauge-fill{fill:none;stroke:url(#gaugeGrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1),stroke .25s ease}
-.gauge-fill[data-level="critical"]{stroke:#ff453a}
-.gauge-fill[data-level="low"]{stroke:#ff9f0a}
-.gauge-fill[data-level="healthy"]{stroke:#30d158}
-.gauge-fill[data-level="near-full"]{stroke:#0a84ff}
+.gauge-fill{fill:none;stroke:url(#gaugeGrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7}
+.gauge-fill[data-level="critical"]{stroke:var(--gauge-critical)}
+.gauge-fill[data-level="low"]{stroke:var(--gauge-low)}
+.gauge-fill[data-level="healthy"]{stroke:var(--gauge-healthy)}
+.gauge-fill[data-level="near-full"]{stroke:var(--gauge-near-full)}
 .gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .gauge-label{font-size:10.5px;font-weight:600;color:var(--t3);letter-spacing:.04em;margin-bottom:1px}
-.gauge-num{font-family:var(--font-display);font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:.9;color:#4da3ff}
-.gauge-num[data-level="critical"]{color:#ff453a}
-.gauge-num[data-level="low"]{color:#ff9f0a}
-.gauge-num[data-level="healthy"]{color:#30d158}
-.gauge-num[data-level="near-full"]{color:#0a84ff}
+.gauge-num{font-family:var(--font-display);font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:.9;color:var(--gauge-near-full)}
+.gauge-num[data-level="critical"]{color:var(--gauge-critical)}
+.gauge-num[data-level="low"]{color:var(--gauge-low)}
+.gauge-num[data-level="healthy"]{color:var(--gauge-healthy)}
+.gauge-num[data-level="near-full"]{color:var(--gauge-near-full)}
 .gauge-num small{color:var(--t3)}
 .gauge-num small{font-size:14px;color:var(--muted2);font-weight:700;margin-left:1px}
 .hero-side{display:grid;gap:8px;min-width:0}
@@ -622,8 +631,11 @@ function setModeUI(){if(mode()==='amount'){E.mainInputLabel.textContent='預計�
 
 // ---- animated number roll-up + gauge fill ----
 const GAUGE_CIRC=2*Math.PI*52; // r=52
+const numberAnimationFrames=new WeakMap();
 function animateNum(el,to,dec){
   if(!el)return;
+  const previous=numberAnimationFrames.get(el);
+  if(previous)cancelAnimationFrame(previous);
   const from=parseFloat((el.textContent||'').replace(/,/g,''))||0;
   if(!Number.isFinite(to)){el.textContent='—';return}
   const dur=520,t0=performance.now();
@@ -632,10 +644,13 @@ function animateNum(el,to,dec){
     let p=Math.min(1,(t-t0)/dur);
     let v=from+(to-from)*ease(p);
     el.textContent=v.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
-    if(p<1)requestAnimationFrame(step);
+    if(p<1)numberAnimationFrames.set(el,requestAnimationFrame(step));
+    else numberAnimationFrames.delete(el);
   }
-  requestAnimationFrame(step);
+  numberAnimationFrames.set(el,requestAnimationFrame(step));
 }
+let gaugeAnimationFrame=0;
+let gaugeValue=0;
 function gaugeLevel(p){if(p<20)return'critical';if(p<50)return'low';if(p<80)return'healthy';return'near-full'}
 function setGauge(pct,levelOverride){
   if(!E.gaugeFill)return;
@@ -647,7 +662,23 @@ function setGauge(pct,levelOverride){
   if(gaugeWrap)gaugeWrap.dataset.level=level;
   if(gaugeNum)gaugeNum.dataset.level=level;
 }
-function calc(){let cap=n(E.capacity),eff=n(E.efficiency)/100,cur=n(E.currentNumber),x=n(E.mainNumber),speed=n(E.speedNumber),rate=n(E.costNumber);let err='',risk='',finalPct=NaN,batt=NaN,wall=NaN;E.capacitySettings.value=E.capacity.value;E.modelSelectSettings.value=E.modelSelect.value;if(!cap||cap<=0)err='請輸入有效電池容量。';else if(!eff||eff<=0||eff>1)err='充電效率需介乎 1% 至 100%。';else if(cur<0||cur>100||!Number.isFinite(cur))err='目前電量需介乎 0% 至 100%。';else if(!speed||speed<=0)err='充電速度需大於 0 kW。';else if(rate<0||!Number.isFinite(rate))err='電費單價不可少於 0。';else if(x<0||!Number.isFinite(x))err='請輸入有效數值。';if(!err&&mode()==='amount'){wall=x;batt=wall*eff;finalPct=cur+batt/cap*100;if(finalPct>100)err='預計最終電量超過 100%。'}if(!err&&mode()==='target'){if(x>100)err='目標電量需介乎 0% 至 100%。';else if(x<cur)err='目標電量低於目前電量。';else{finalPct=x;batt=cap*(x-cur)/100;wall=batt/eff}}if(!err){if(finalPct>=95)risk='接近滿電，尾段會較慢';else if(finalPct>=90)risk='高電量區間充電較慢'}showErr(err);setRisk(err?'':risk);let hours=wall/speed,cost=wall*rate;if(err){E.finalPct.textContent='—';setGauge(0,'neutral');E.wallKwhHero.textContent='—';E.batteryKwh.textContent='—';E.duration.textContent='—';E.finishTime.textContent='—';E.totalCost.textContent='—';E.updatedTime.textContent='更新時間：--:--';return}animateNum(E.finalPct,finalPct,1);setGauge(finalPct);animateNum(E.wallKwhHero,wall,1);E.batteryKwh.textContent=fmt(batt,2);E.duration.textContent=dur(hours);E.finishTime.textContent=finish(hours);E.totalCost.textContent=fmt(cost,2);E.updatedTime.textContent='更新時間：'+new Date().toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'});updateVehicleBadge();renderRecentModels();save()}
+function animateGauge(to,dec){
+  cancelAnimationFrame(gaugeAnimationFrame);
+  const from=Number.isFinite(gaugeValue)?gaugeValue:0;
+  if(!Number.isFinite(to)){gaugeValue=0;E.finalPct.textContent='—';setGauge(0,'neutral');return}
+  const dur=520,t0=performance.now();
+  const ease=x=>1-Math.pow(1-x,3);
+  function step(t){
+    const p=Math.min(1,(t-t0)/dur);
+    gaugeValue=from+(to-from)*ease(p);
+    E.finalPct.textContent=gaugeValue.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+    setGauge(gaugeValue);
+    if(p<1)gaugeAnimationFrame=requestAnimationFrame(step);
+    else{gaugeValue=to;setGauge(to);gaugeAnimationFrame=0}
+  }
+  gaugeAnimationFrame=requestAnimationFrame(step);
+}
+function calc(){let cap=n(E.capacity),eff=n(E.efficiency)/100,cur=n(E.currentNumber),x=n(E.mainNumber),speed=n(E.speedNumber),rate=n(E.costNumber);let err='',risk='',finalPct=NaN,batt=NaN,wall=NaN;E.capacitySettings.value=E.capacity.value;E.modelSelectSettings.value=E.modelSelect.value;if(!cap||cap<=0)err='請輸入有效電池容量。';else if(!eff||eff<=0||eff>1)err='充電效率需介乎 1% 至 100%。';else if(cur<0||cur>100||!Number.isFinite(cur))err='目前電量需介乎 0% 至 100%。';else if(!speed||speed<=0)err='充電速度需大於 0 kW。';else if(rate<0||!Number.isFinite(rate))err='電費單價不可少於 0。';else if(x<0||!Number.isFinite(x))err='請輸入有效數值。';if(!err&&mode()==='amount'){wall=x;batt=wall*eff;finalPct=cur+batt/cap*100;if(finalPct>100)err='預計最終電量超過 100%。'}if(!err&&mode()==='target'){if(x>100)err='目標電量需介乎 0% 至 100%。';else if(x<cur)err='目標電量低於目前電量。';else{finalPct=x;batt=cap*(x-cur)/100;wall=batt/eff}}if(!err){if(finalPct>=95)risk='接近滿電，尾段會較慢';else if(finalPct>=90)risk='高電量區間充電較慢'}showErr(err);setRisk(err?'':risk);let hours=wall/speed,cost=wall*rate;if(err){cancelAnimationFrame(gaugeAnimationFrame);gaugeAnimationFrame=0;gaugeValue=0;E.finalPct.textContent='—';setGauge(0,'neutral');animateNum(E.wallKwhHero,NaN,1);E.batteryKwh.textContent='—';E.duration.textContent='—';E.finishTime.textContent='—';E.totalCost.textContent='—';E.updatedTime.textContent='更新時間：--:--';return}animateGauge(finalPct,1);animateNum(E.wallKwhHero,wall,1);E.batteryKwh.textContent=fmt(batt,2);E.duration.textContent=dur(hours);E.finishTime.textContent=finish(hours);E.totalCost.textContent=fmt(cost,2);E.updatedTime.textContent='更新時間：'+new Date().toLocaleTimeString('zh-HK',{hour:'2-digit',minute:'2-digit'});updateVehicleBadge();renderRecentModels();save()}
 function syncRangeInput(range,input,expandMax=false,hardMax=null){range.addEventListener('input',()=>{input.value=range.value;calc()});input.addEventListener('input',()=>{let v=n(input);if(Number.isFinite(v)){if(expandMax&&v>Number(range.max)){let nm=Math.ceil(v);if(hardMax!=null)nm=Math.min(nm,hardMax);range.max=nm}range.value=clamp(v,Number(range.min),Number(range.max))}calc()});input.addEventListener('focus',()=>input.select())}
 function pop(btn,key){const d=info[key];if(!d)return;E.popTitle.textContent=d[0];E.popText.textContent=d[1];E.popover.classList.add('open');const r=btn.getBoundingClientRect();const pr=E.popover.getBoundingClientRect();let l=Math.max(14,Math.min(r.left+r.width/2-pr.width/2,innerWidth-pr.width-14));let t=r.bottom+8;if(t+pr.height>innerHeight-14)t=Math.max(14,r.top-pr.height-8);E.popover.style.left=l+'px';E.popover.style.top=t+'px'}
 function setModelCustom(){E.modelSelect.value='custom';E.modelSelectSettings.value='custom';S.model='custom'}
