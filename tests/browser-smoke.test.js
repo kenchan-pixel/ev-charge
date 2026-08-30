@@ -146,6 +146,80 @@ test("owned-resource cleanup is idempotent", async () => {
   assert.equal(calls, 1);
 });
 
+test("owned-resource cleanup runs every step before reporting failures", async () => {
+  const calls = [];
+  const cdpError = new Error("CDP close failed");
+  const serverError = new Error("server close failed");
+
+  await assert.rejects(
+    smoke.runCleanupSteps([
+      ["CDP", async () => {
+        calls.push("CDP");
+        throw cdpError;
+      }],
+      ["browser", async () => calls.push("browser")],
+      ["Chrome", async () => calls.push("Chrome")],
+      ["server", async () => {
+        calls.push("server");
+        throw serverError;
+      }],
+      ["profile", async () => calls.push("profile")],
+    ]),
+    (error) => {
+      assert.equal(error instanceof AggregateError, true);
+      assert.match(error.message, /owned-resource cleanup failed/i);
+      assert.equal(error.errors.length, 2);
+      assert.equal(error.errors[0].cause, cdpError);
+      assert.equal(error.errors[1].cause, serverError);
+      return true;
+    },
+  );
+
+  assert.deepEqual(calls, ["CDP", "browser", "Chrome", "server", "profile"]);
+});
+
+test("a second signal during cleanup shares the pending task before disposal", async () => {
+  const signalSource = new EventEmitter();
+  const exits = [];
+  let cleanupCalls = 0;
+  let releaseCleanup;
+  const cleanupBlock = new Promise((resolve) => {
+    releaseCleanup = resolve;
+  });
+  const cleanup = smoke.createIdempotentCleanup(async () => {
+    cleanupCalls += 1;
+    await cleanupBlock;
+  });
+  const dispose = smoke.installSignalCleanup(cleanup, {
+    signalSource,
+    exit: (code) => exits.push(code),
+    reportError: (error) => {
+      throw error;
+    },
+  });
+
+  const finalizing = smoke.cleanupAndDispose(cleanup, dispose);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(cleanupCalls, 1);
+  assert.equal(signalSource.listenerCount("SIGINT"), 1);
+  assert.equal(signalSource.listenerCount("SIGTERM"), 1);
+
+  const firstSignal = signalSource.listeners("SIGINT")[0]();
+  const secondSignal = signalSource.listeners("SIGTERM")[0]();
+  assert.equal(typeof firstSignal?.then, "function");
+  assert.equal(secondSignal, firstSignal);
+  assert.deepEqual(exits, []);
+  assert.equal(signalSource.listenerCount("SIGINT"), 1);
+  assert.equal(signalSource.listenerCount("SIGTERM"), 1);
+
+  releaseCleanup();
+  await Promise.all([finalizing, firstSignal, secondSignal]);
+  assert.equal(cleanupCalls, 1);
+  assert.deepEqual(exits, [130]);
+  assert.equal(signalSource.listenerCount("SIGINT"), 0);
+  assert.equal(signalSource.listenerCount("SIGTERM"), 0);
+});
+
 for (const [signal, exitCode] of [
   ["SIGINT", 130],
   ["SIGTERM", 143],

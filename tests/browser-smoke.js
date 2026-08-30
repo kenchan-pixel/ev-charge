@@ -245,6 +245,21 @@ function createIdempotentCleanup(task) {
   };
 }
 
+async function runCleanupSteps(steps) {
+  const errors = [];
+  for (const [name, step] of steps) {
+    try {
+      await step();
+    } catch (error) {
+      errors.push(new Error(`${name} cleanup failed`, { cause: error }));
+    }
+  }
+
+  if (errors.length) {
+    throw new AggregateError(errors, "Owned-resource cleanup failed");
+  }
+}
+
 function installSignalCleanup(
   cleanup,
   {
@@ -253,22 +268,23 @@ function installSignalCleanup(
     reportError = (error) => console.error(error),
   } = {},
 ) {
-  let handlingSignal = false;
+  let shutdownPromise;
   const handlers = new Map();
   for (const [signal, exitCode] of [
     ["SIGINT", 130],
     ["SIGTERM", 143],
   ]) {
     const handler = () => {
-      if (handlingSignal) return;
-      handlingSignal = true;
-      Promise.resolve()
-        .then(cleanup)
-        .then(() => exit(exitCode))
-        .catch((error) => {
-          reportError(error);
-          exit(1);
-        });
+      if (!shutdownPromise) {
+        shutdownPromise = Promise.resolve()
+          .then(cleanup)
+          .then(() => exit(exitCode))
+          .catch((error) => {
+            reportError(error);
+            exit(1);
+          });
+      }
+      return shutdownPromise;
     };
     handlers.set(signal, handler);
     signalSource.on(signal, handler);
@@ -281,10 +297,24 @@ function installSignalCleanup(
   };
 }
 
-async function closeBrowserFromPortFile(portFile) {
-  if (!existsSync(portFile)) return;
+async function cleanupAndDispose(cleanup, dispose) {
+  try {
+    await cleanup();
+  } finally {
+    dispose();
+  }
+}
 
-  const [portLine, browserPath] = readFileSync(portFile, "utf8").split(/\r?\n/);
+async function closeBrowserFromPortFile(portFile) {
+  let portContents;
+  try {
+    portContents = readFileSync(portFile, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return;
+    throw error;
+  }
+
+  const [portLine, browserPath] = portContents.split(/\r?\n/);
   const port = Number(portLine);
   if (!Number.isFinite(port) || !browserPath) return;
 
@@ -390,13 +420,15 @@ async function main() {
   let chrome;
   let cdp;
   let chromeErrors = "";
-  const cleanup = createIdempotentCleanup(async () => {
-    if (cdp) cdp.close();
-    await closeBrowserFromPortFile(portFile);
-    await stopChrome(chrome);
-    await closeServer(server);
-    await removeOwnedProfile(profilePath);
-  });
+  const cleanup = createIdempotentCleanup(() =>
+    runCleanupSteps([
+      ["CDP", async () => cdp?.close()],
+      ["browser", async () => closeBrowserFromPortFile(portFile)],
+      ["Chrome", async () => stopChrome(chrome)],
+      ["server", async () => closeServer(server)],
+      ["profile", async () => removeOwnedProfile(profilePath)],
+    ]),
+  );
   const disposeSignalCleanup = installSignalCleanup(cleanup);
 
   try {
@@ -644,15 +676,16 @@ async function main() {
     if (chromeErrors) process.stderr.write(chromeErrors);
     throw error;
   } finally {
-    disposeSignalCleanup();
-    await cleanup();
+    await cleanupAndDispose(cleanup, disposeSignalCleanup);
   }
 }
 
 module.exports = {
   connectCdp,
+  cleanupAndDispose,
   createIdempotentCleanup,
   installSignalCleanup,
+  runCleanupSteps,
   startStaticServer,
   waitFor,
 };
