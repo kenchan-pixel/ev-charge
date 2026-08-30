@@ -643,6 +643,47 @@ async function main() {
       applyDisabled: false,
     });
 
+    const capacityWithoutReference = await evaluate(
+      cdp,
+      `(async () => {
+        const setInput = (id, value) => {
+          const element = document.getElementById(id);
+          element.value = String(value);
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        setInput('mainNumber', 80);
+        setInput('capacity', '');
+        setInput('calibKwh', 52);
+        const result = {
+          capacityKwh: document.getElementById('calibCapacity').textContent.trim(),
+          ratioPercent: document.getElementById('calibRatio').textContent.trim(),
+          applyDisabled: document.getElementById('applyCalibCapacity').disabled
+        };
+        document.getElementById('applyCalibCapacity').click();
+        await new Promise((resolveWait) => setTimeout(resolveWait, 700));
+        return {
+          ...result,
+          mainCapacity: document.getElementById('capacity').value,
+          settingsCapacity: document.getElementById('capacitySettings').value,
+          model: document.getElementById('modelSelect').value,
+          modalOpen: document.getElementById('calibBg').classList.contains('open'),
+          finalPercent: document.getElementById('finalPct').textContent.trim(),
+          wallKwh: document.getElementById('wallKwhHero').textContent.trim()
+        };
+      })()`,
+    );
+    assert.deepEqual(capacityWithoutReference, {
+      capacityKwh: "78.0",
+      ratioPercent: "—",
+      applyDisabled: false,
+      mainCapacity: "78.0",
+      settingsCapacity: "78.0",
+      model: "custom",
+      modalOpen: false,
+      finalPercent: "80.0",
+      wallKwh: "45.1",
+    });
+
     if (screenshotPath) {
       const screenshot = await cdp.send("Page.captureScreenshot", {
         format: "png",
@@ -665,6 +706,7 @@ async function main() {
           target,
           invalid,
           capacity,
+          capacityWithoutReference,
           mobile,
           screenshotPath: screenshotPath || null,
         },

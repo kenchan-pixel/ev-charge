@@ -108,21 +108,21 @@
     const efficiency = Number(input.efficiencyPercent) / 100;
     const referenceCapacityKwh = Number(input.referenceCapacityKwh);
     const deltaPercent = endPercent - startPercent;
-    const valid =
+    const validRecord =
       Number.isFinite(startPercent) &&
       Number.isFinite(endPercent) &&
       Number.isFinite(wallKwh) &&
       Number.isFinite(efficiency) &&
-      Number.isFinite(referenceCapacityKwh) &&
       deltaPercent > 0 &&
       startPercent >= 0 &&
       endPercent <= 100 &&
       wallKwh > 0 &&
       efficiency > 0 &&
-      efficiency <= 1 &&
-      referenceCapacityKwh > 0;
+      efficiency <= 1;
+    const hasValidReference =
+      Number.isFinite(referenceCapacityKwh) && referenceCapacityKwh > 0;
 
-    if (!valid) {
+    if (!validRecord) {
       return {
         ok: false,
         error: "請輸入有效充電紀錄。",
@@ -151,7 +151,9 @@
       ok: true,
       error: "",
       capacityKwh,
-      ratioPercent: (capacityKwh / referenceCapacityKwh) * 100,
+      ratioPercent: hasValidReference
+        ? (capacityKwh / referenceCapacityKwh) * 100
+        : Number.NaN,
       deltaPercent,
       confidence,
     };

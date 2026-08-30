@@ -189,6 +189,28 @@ test("capacity estimation converts a charging record into usable capacity", () =
   );
 });
 
+test("capacity estimation stays usable without a valid reference capacity", () => {
+  for (const referenceCapacityKwh of ["", 0, "invalid"]) {
+    assert.deepEqual(
+      estimateCapacity({
+        startPercent: 20,
+        endPercent: 80,
+        wallKwh: 52,
+        efficiencyPercent: 90,
+        referenceCapacityKwh,
+      }),
+      {
+        ok: true,
+        error: "",
+        capacityKwh: 78.00000000000001,
+        ratioPercent: Number.NaN,
+        deltaPercent: 60,
+        confidence: "可信度較高：較適合作容量估算。",
+      },
+    );
+  }
+});
+
 test("capacity confidence follows the existing SOC-span guidance", () => {
   const common = {
     wallKwh: 10,
@@ -231,7 +253,6 @@ test("capacity estimation rejects invalid charging records", () => {
     { wallKwh: 0 },
     { efficiencyPercent: 0 },
     { efficiencyPercent: 101 },
-    { referenceCapacityKwh: 0 },
     { wallKwh: "invalid" },
   ];
 
