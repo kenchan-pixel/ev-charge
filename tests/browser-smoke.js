@@ -13,6 +13,16 @@ const { tmpdir } = require("node:os");
 const { basename, extname, join, resolve, sep } = require("node:path");
 
 const projectRoot = resolve(__dirname, "..");
+const publicFiles = new Set([
+  "apple-touch-icon.png",
+  "calculation-core.js",
+  "icon-192.png",
+  "icon-512.png",
+  "index.html",
+  "manifest.webmanifest",
+]);
+const CDP_COMMAND_TIMEOUT_MS = 5_000;
+const WAIT_CHECK_TIMEOUT_MS = 2_000;
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -47,9 +57,15 @@ function startStaticServer() {
   const server = createServer((request, response) => {
     try {
       const requestUrl = new URL(request.url, "http://127.0.0.1");
-      const pathname =
-        requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname;
-      const filePath = resolve(projectRoot, `.${decodeURIComponent(pathname)}`);
+      const publicPath =
+        requestUrl.pathname === "/"
+          ? "index.html"
+          : decodeURIComponent(requestUrl.pathname).replace(/^\/+/, "");
+      if (!publicFiles.has(publicPath)) {
+        response.writeHead(403).end("Forbidden");
+        return;
+      }
+      const filePath = resolve(projectRoot, publicPath);
 
       if (
         filePath !== projectRoot &&
@@ -82,13 +98,28 @@ function startStaticServer() {
   });
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  let timeout;
+  const deadline = new Promise((unused, reject) => {
+    timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([Promise.resolve(promise), deadline]).finally(() => {
+    clearTimeout(timeout);
+  });
+}
+
 async function waitFor(check, description, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
 
   while (Date.now() < deadline) {
     try {
-      const value = await check();
+      const remainingMs = deadline - Date.now();
+      const value = await withTimeout(
+        Promise.resolve().then(check),
+        Math.min(WAIT_CHECK_TIMEOUT_MS, remainingMs),
+        `Timed out during ${description} check`,
+      );
       if (value) return value;
     } catch (error) {
       lastError = error;
@@ -101,19 +132,59 @@ async function waitFor(check, description, timeoutMs = 15_000) {
   );
 }
 
-function connectCdp(webSocketUrl) {
-  const socket = new WebSocket(webSocketUrl);
+function connectCdp(
+  webSocketUrl,
+  { commandTimeoutMs = CDP_COMMAND_TIMEOUT_MS, WebSocketImpl = WebSocket } = {},
+) {
+  const socket = new WebSocketImpl(webSocketUrl);
   const pending = new Map();
   const events = [];
   let sequence = 0;
+  let openSettled = false;
+
+  function rejectPending(error) {
+    for (const [id, waiter] of pending) {
+      pending.delete(id);
+      waiter.reject(error);
+    }
+  }
 
   const opened = new Promise((resolveOpen, reject) => {
-    socket.addEventListener("open", resolveOpen, { once: true });
     socket.addEventListener(
-      "error",
-      () => reject(new Error("CDP WebSocket open failed")),
+      "open",
+      () => {
+        openSettled = true;
+        resolveOpen();
+      },
       { once: true },
     );
+    socket.addEventListener(
+      "error",
+      () => {
+        if (!openSettled) {
+          openSettled = true;
+          reject(new Error("CDP WebSocket open failed"));
+        }
+      },
+      { once: true },
+    );
+    socket.addEventListener(
+      "close",
+      () => {
+        if (!openSettled) {
+          openSettled = true;
+          reject(new Error("CDP WebSocket closed before opening"));
+        }
+      },
+      { once: true },
+    );
+  });
+
+  socket.addEventListener("error", () => {
+    rejectPending(new Error("CDP WebSocket error"));
+  });
+  socket.addEventListener("close", () => {
+    rejectPending(new Error("CDP WebSocket closed"));
   });
 
   socket.addEventListener("message", ({ data }) => {
@@ -133,6 +204,7 @@ function connectCdp(webSocketUrl) {
     events,
     opened,
     close: () => {
+      rejectPending(new Error("CDP WebSocket closed"));
       try {
         socket.close();
       } catch {}
@@ -140,9 +212,72 @@ function connectCdp(webSocketUrl) {
     send: (method, params = {}) =>
       new Promise((resolveSend, reject) => {
         const id = ++sequence;
-        pending.set(id, { resolve: resolveSend, reject });
-        socket.send(JSON.stringify({ id, method, params }));
+        const timeout = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error(`CDP command timed out: ${method}`));
+        }, commandTimeoutMs);
+        const waiter = {
+          resolve: (value) => {
+            clearTimeout(timeout);
+            resolveSend(value);
+          },
+          reject: (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          },
+        };
+        pending.set(id, waiter);
+        try {
+          socket.send(JSON.stringify({ id, method, params }));
+        } catch (error) {
+          pending.delete(id);
+          waiter.reject(error);
+        }
       }),
+  };
+}
+
+function createIdempotentCleanup(task) {
+  let cleanupPromise;
+  return () => {
+    if (!cleanupPromise) cleanupPromise = Promise.resolve().then(task);
+    return cleanupPromise;
+  };
+}
+
+function installSignalCleanup(
+  cleanup,
+  {
+    signalSource = process,
+    exit = (code) => process.exit(code),
+    reportError = (error) => console.error(error),
+  } = {},
+) {
+  let handlingSignal = false;
+  const handlers = new Map();
+  for (const [signal, exitCode] of [
+    ["SIGINT", 130],
+    ["SIGTERM", 143],
+  ]) {
+    const handler = () => {
+      if (handlingSignal) return;
+      handlingSignal = true;
+      Promise.resolve()
+        .then(cleanup)
+        .then(() => exit(exitCode))
+        .catch((error) => {
+          reportError(error);
+          exit(1);
+        });
+    };
+    handlers.set(signal, handler);
+    signalSource.on(signal, handler);
+  }
+
+  return () => {
+    for (const [signal, handler] of handlers) {
+      signalSource.removeListener(signal, handler);
+    }
   };
 }
 
@@ -203,6 +338,13 @@ async function stopChrome(chrome) {
   await new Promise((resolveWait) => setTimeout(resolveWait, 500));
 }
 
+function closeServer(server) {
+  if (!server || !server.listening) return Promise.resolve();
+  return new Promise((resolveClose, reject) => {
+    server.close((error) => (error ? reject(error) : resolveClose()));
+  });
+}
+
 async function removeOwnedProfile(profilePath) {
   const tempRoot = resolve(
     process.env.EV_CHARGE_BROWSER_TEMP_ROOT ||
@@ -243,18 +385,27 @@ async function main() {
   const profilePath = mkdtempSync(join(profileRoot, "ev-charge-browser-smoke-"));
   const portFile = join(profilePath, "DevToolsActivePort");
   const screenshotPath = process.env.BROWSER_SMOKE_SCREENSHOT;
-  const { server, url } = await startStaticServer();
+  let server;
+  let url;
   let chrome;
   let cdp;
   let chromeErrors = "";
+  const cleanup = createIdempotentCleanup(async () => {
+    if (cdp) cdp.close();
+    await closeBrowserFromPortFile(portFile);
+    await stopChrome(chrome);
+    await closeServer(server);
+    await removeOwnedProfile(profilePath);
+  });
+  const disposeSignalCleanup = installSignalCleanup(cleanup);
 
   try {
+    ({ server, url } = await startStaticServer());
     chrome = spawn(
       chromePath,
       [
         "--headless=new",
         "--disable-gpu",
-        "--no-sandbox",
         "--disable-crash-reporter",
         "--disable-background-networking",
         "--disable-component-update",
@@ -291,7 +442,11 @@ async function main() {
     }, "calculator browser target");
 
     cdp = connectCdp(targets.webSocketDebuggerUrl);
-    await cdp.opened;
+    await withTimeout(
+      cdp.opened,
+      CDP_COMMAND_TIMEOUT_MS,
+      "CDP WebSocket open timed out",
+    );
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
     await cdp.send("Page.reload", { ignoreCache: true });
@@ -331,6 +486,24 @@ async function main() {
       manifestPath: "manifest.webmanifest",
     });
 
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 1,
+      mobile: true,
+    });
+    const mobile = await evaluate(
+      cdp,
+      `(() => ({
+        viewportWidth: innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        resultVisible: Boolean(document.getElementById('finalPct').offsetParent)
+      }))()`,
+    );
+    assert.equal(mobile.viewportWidth, 390);
+    assert.ok(mobile.documentWidth <= 390);
+    assert.equal(mobile.resultVisible, true);
+
     const target = await evaluate(
       cdp,
       `(async () => {
@@ -356,6 +529,8 @@ async function main() {
           cost: document.getElementById('totalCost').textContent.trim(),
           error: document.getElementById('error').textContent.trim(),
           storedMode: saved.mode,
+          viewportWidth: innerWidth,
+          documentWidth: document.documentElement.scrollWidth,
           storageKeys: Object.keys(saved).sort()
         };
       })()`,
@@ -369,6 +544,8 @@ async function main() {
       cost: "76.71",
       error: "",
       storedMode: "target",
+      viewportWidth: 390,
+      documentWidth: 390,
       storageKeys: [
         "amount",
         "capacity",
@@ -434,24 +611,6 @@ async function main() {
       applyDisabled: false,
     });
 
-    await cdp.send("Emulation.setDeviceMetricsOverride", {
-      width: 390,
-      height: 844,
-      deviceScaleFactor: 1,
-      mobile: true,
-    });
-    const mobile = await evaluate(
-      cdp,
-      `(() => ({
-        viewportWidth: innerWidth,
-        documentWidth: document.documentElement.scrollWidth,
-        resultVisible: Boolean(document.getElementById('finalPct').offsetParent)
-      }))()`,
-    );
-    assert.equal(mobile.viewportWidth, 390);
-    assert.ok(mobile.documentWidth <= 390);
-    assert.equal(mobile.resultVisible, true);
-
     if (screenshotPath) {
       const screenshot = await cdp.send("Page.captureScreenshot", {
         format: "png",
@@ -485,15 +644,22 @@ async function main() {
     if (chromeErrors) process.stderr.write(chromeErrors);
     throw error;
   } finally {
-    if (cdp) cdp.close();
-    await closeBrowserFromPortFile(portFile);
-    await stopChrome(chrome);
-    await new Promise((resolveClose) => server.close(resolveClose));
-    await removeOwnedProfile(profilePath);
+    disposeSignalCleanup();
+    await cleanup();
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+module.exports = {
+  connectCdp,
+  createIdempotentCleanup,
+  installSignalCleanup,
+  startStaticServer,
+  waitFor,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
