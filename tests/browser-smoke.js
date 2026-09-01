@@ -401,7 +401,15 @@ function closeServer(server) {
   });
 }
 
-async function removeOwnedProfile(profilePath) {
+async function removeOwnedProfile(
+  profilePath,
+  {
+    remove = rmSync,
+    wait = (delayMs) =>
+      new Promise((resolveWait) => setTimeout(resolveWait, delayMs)),
+    maxAttempts = 30,
+  } = {},
+) {
   const tempRoot = resolve(
     process.env.EV_CHARGE_BROWSER_TEMP_ROOT ||
       process.env.RUNNER_TEMP ||
@@ -415,18 +423,18 @@ async function removeOwnedProfile(profilePath) {
   ) {
     throw new Error(`Refusing to remove unexpected browser profile: ${ownedPath}`);
   }
-  for (let attempt = 1; attempt <= 10; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      rmSync(ownedPath, { recursive: true, force: true });
+      remove(ownedPath, { recursive: true, force: true });
       return;
     } catch (error) {
       if (
-        attempt === 10 ||
+        attempt === maxAttempts ||
         (error.code !== "EPERM" && error.code !== "EBUSY")
       ) {
         throw error;
       }
-      await new Promise((resolveWait) => setTimeout(resolveWait, attempt * 100));
+      await wait(Math.min(attempt * 100, 500));
     }
   }
 }
@@ -753,6 +761,7 @@ module.exports = {
   cleanupAndDispose,
   createIdempotentCleanup,
   installSignalCleanup,
+  removeOwnedProfile,
   runCleanupSteps,
   startStaticServer,
   waitFor,

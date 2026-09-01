@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { readFileSync } = require("node:fs");
+const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
 const smokeSource = readFileSync(join(__dirname, "browser-smoke.js"), "utf8");
@@ -196,6 +197,30 @@ test("owned-resource cleanup runs every step before reporting failures", async (
   );
 
   assert.deepEqual(calls, ["CDP", "browser", "Chrome", "server", "profile"]);
+});
+
+test("profile cleanup outlasts a delayed Windows file-lock release", async () => {
+  assert.equal(typeof smoke.removeOwnedProfile, "function");
+  let attempts = 0;
+  const waits = [];
+
+  await smoke.removeOwnedProfile(
+    join(tmpdir(), "ev-charge-browser-smoke-regression"),
+    {
+      remove: () => {
+        attempts += 1;
+        if (attempts <= 10) {
+          const error = new Error("profile remains locked");
+          error.code = "EPERM";
+          throw error;
+        }
+      },
+      wait: async (delayMs) => waits.push(delayMs),
+    },
+  );
+
+  assert.equal(attempts, 11);
+  assert.equal(waits.length, 10);
 });
 
 test("a second signal during cleanup shares the pending task before disposal", async () => {
