@@ -54,8 +54,9 @@ function findChrome() {
 }
 
 function startStaticServer({
-  probe = (url) => fetch(url, { method: "HEAD" }),
+  probe = (url, { signal } = {}) => fetch(url, { method: "HEAD", signal }),
   maxBadPortRetries = 10,
+  probeTimeoutMs = WAIT_CHECK_TIMEOUT_MS,
 } = {}) {
   const server = createServer((request, response) => {
     try {
@@ -100,11 +101,19 @@ function startStaticServer({
       server.listen(0, "127.0.0.1", async () => {
         const address = server.address();
         const url = `http://127.0.0.1:${address.port}/`;
+        const probeController = new AbortController();
 
         try {
-          await probe(url);
+          await withTimeout(
+            Promise.resolve().then(() =>
+              probe(url, { signal: probeController.signal }),
+            ),
+            probeTimeoutMs,
+            "Static server probe timed out",
+          );
           resolveServer({ server, url });
         } catch (error) {
+          probeController.abort();
           const isBadPort = error?.cause?.message === "bad port";
           if (!isBadPort || badPortRetries >= maxBadPortRetries) {
             server.close((closeError) => reject(closeError || error));

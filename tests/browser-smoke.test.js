@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { readFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
-const { join } = require("node:path");
+const { join, resolve } = require("node:path");
 
 const smokeSource = readFileSync(join(__dirname, "browser-smoke.js"), "utf8");
 const smoke = require("./browser-smoke.js");
@@ -101,6 +101,70 @@ test("static smoke server retries a browser-blocked ephemeral port", async () =>
   } finally {
     await closeServer(server);
   }
+});
+
+test("static smoke server bounds a stalled safety probe", async () => {
+  let releaseProbe;
+  const stalledProbe = new Promise((resolveProbe) => {
+    releaseProbe = resolveProbe;
+  });
+  const startingServer = smoke.startStaticServer({
+    probe: () => stalledProbe,
+    probeTimeoutMs: 10,
+  });
+
+  try {
+    await assert.rejects(
+      regressionDeadline(startingServer, 100),
+      /Static server probe timed out/,
+    );
+  } finally {
+    releaseProbe();
+    try {
+      const { server } = await startingServer;
+      await closeServer(server);
+    } catch {
+      // The repaired path rejects after closing its owned server.
+    }
+  }
+});
+
+test("static smoke server closes on an unexpected probe failure", async () => {
+  let probeCalls = 0;
+  await assert.rejects(
+    regressionDeadline(
+      smoke.startStaticServer({
+        probe: async () => {
+          probeCalls += 1;
+          throw new Error("probe failed");
+        },
+      }),
+      250,
+    ),
+    /probe failed/,
+  );
+  assert.equal(probeCalls, 1);
+});
+
+test("static smoke server bounds repeated bad-port retries", async () => {
+  let probeCalls = 0;
+  const badPortError = new TypeError("fetch failed", {
+    cause: new Error("bad port"),
+  });
+  await assert.rejects(
+    regressionDeadline(
+      smoke.startStaticServer({
+        probe: async () => {
+          probeCalls += 1;
+          throw badPortError;
+        },
+        maxBadPortRetries: 2,
+      }),
+      250,
+    ),
+    (error) => error === badPortError,
+  );
+  assert.equal(probeCalls, 3);
 });
 
 test("Chrome keeps its sandbox enabled for PR-controlled pages", () => {
@@ -245,6 +309,73 @@ test("profile cleanup retries transient ENOTEMPTY failures", async () => {
 
   assert.equal(attempts, 4);
   assert.equal(waits.length, 3);
+});
+
+test("profile cleanup retries transient EBUSY failures", async () => {
+  let attempts = 0;
+
+  await smoke.removeOwnedProfile(
+    join(tmpdir(), "ev-charge-browser-smoke-regression"),
+    {
+      remove: () => {
+        attempts += 1;
+        if (attempts === 1) {
+          const error = new Error("profile remains busy");
+          error.code = "EBUSY";
+          throw error;
+        }
+      },
+      wait: async () => {},
+    },
+  );
+
+  assert.equal(attempts, 2);
+});
+
+test("profile cleanup does not retry unexpected removal failures", async () => {
+  let attempts = 0;
+  let waits = 0;
+
+  await assert.rejects(
+    smoke.removeOwnedProfile(
+      join(tmpdir(), "ev-charge-browser-smoke-regression"),
+      {
+        remove: () => {
+          attempts += 1;
+          const error = new Error("access denied");
+          error.code = "EACCES";
+          throw error;
+        },
+        wait: async () => {
+          waits += 1;
+        },
+      },
+    ),
+    (error) => error.code === "EACCES",
+  );
+
+  assert.equal(attempts, 1);
+  assert.equal(waits, 0);
+});
+
+test("profile cleanup rejects unowned paths before removal", async () => {
+  const unsafePaths = [
+    join(tmpdir(), "not-an-owned-browser-profile"),
+    resolve(tmpdir(), "..", "ev-charge-browser-smoke-outside-temp"),
+  ];
+
+  for (const unsafePath of unsafePaths) {
+    let removeCalls = 0;
+    await assert.rejects(
+      smoke.removeOwnedProfile(unsafePath, {
+        remove: () => {
+          removeCalls += 1;
+        },
+      }),
+      /Refusing to remove unexpected browser profile/,
+    );
+    assert.equal(removeCalls, 0);
+  }
 });
 
 test("profile cleanup stops at its bounded retry limit", async () => {
