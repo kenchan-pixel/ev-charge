@@ -7,6 +7,15 @@ const { join, resolve } = require("node:path");
 
 const smokeSource = readFileSync(join(__dirname, "browser-smoke.js"), "utf8");
 const smoke = require("./browser-smoke.js");
+const browserProfileRoot = resolve(
+  process.env.EV_CHARGE_BROWSER_TEMP_ROOT ||
+    process.env.RUNNER_TEMP ||
+    tmpdir(),
+);
+const ownedProfilePath = join(
+  browserProfileRoot,
+  "ev-charge-browser-smoke-regression",
+);
 
 class FakeWebSocket {
   static instance;
@@ -269,7 +278,7 @@ test("profile cleanup outlasts a delayed Windows file-lock release", async () =>
   const waits = [];
 
   await smoke.removeOwnedProfile(
-    join(tmpdir(), "ev-charge-browser-smoke-regression"),
+    ownedProfilePath,
     {
       remove: () => {
         attempts += 1;
@@ -292,7 +301,7 @@ test("profile cleanup retries transient ENOTEMPTY failures", async () => {
   const waits = [];
 
   await smoke.removeOwnedProfile(
-    join(tmpdir(), "ev-charge-browser-smoke-regression"),
+    ownedProfilePath,
     {
       remove: () => {
         attempts += 1;
@@ -315,7 +324,7 @@ test("profile cleanup retries transient EBUSY failures", async () => {
   let attempts = 0;
 
   await smoke.removeOwnedProfile(
-    join(tmpdir(), "ev-charge-browser-smoke-regression"),
+    ownedProfilePath,
     {
       remove: () => {
         attempts += 1;
@@ -338,7 +347,7 @@ test("profile cleanup does not retry unexpected removal failures", async () => {
 
   await assert.rejects(
     smoke.removeOwnedProfile(
-      join(tmpdir(), "ev-charge-browser-smoke-regression"),
+      ownedProfilePath,
       {
         remove: () => {
           attempts += 1;
@@ -360,8 +369,12 @@ test("profile cleanup does not retry unexpected removal failures", async () => {
 
 test("profile cleanup rejects unowned paths before removal", async () => {
   const unsafePaths = [
-    join(tmpdir(), "not-an-owned-browser-profile"),
-    resolve(tmpdir(), "..", "ev-charge-browser-smoke-outside-temp"),
+    join(browserProfileRoot, "not-an-owned-browser-profile"),
+    resolve(
+      browserProfileRoot,
+      "..",
+      "ev-charge-browser-smoke-outside-temp",
+    ),
   ];
 
   for (const unsafePath of unsafePaths) {
@@ -384,7 +397,7 @@ test("profile cleanup stops at its bounded retry limit", async () => {
 
   await assert.rejects(
     smoke.removeOwnedProfile(
-      join(tmpdir(), "ev-charge-browser-smoke-regression"),
+      ownedProfilePath,
       {
         remove: () => {
           attempts += 1;
