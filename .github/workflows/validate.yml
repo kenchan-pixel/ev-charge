@@ -1,0 +1,44 @@
+name: Validate
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check calculation-core.js
+          node --check tests/calculation-core.test.js
+          node --check tests/static-site.test.js
+          node --check tests/workflow.test.js
+          node --check tests/browser-smoke.js
+          node --check tests/browser-smoke.test.js
+
+      - name: Run core and static tests
+        run: node --test
+
+      - name: Run browser smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tests/browser-smoke.js
