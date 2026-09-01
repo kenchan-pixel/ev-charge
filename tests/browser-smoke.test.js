@@ -82,6 +82,26 @@ test("static smoke server exposes only public site assets", async () => {
   }
 });
 
+test("static smoke server retries a browser-blocked ephemeral port", async () => {
+  let probeCalls = 0;
+  const badPortError = new TypeError("fetch failed", {
+    cause: new Error("bad port"),
+  });
+  const { server, url } = await smoke.startStaticServer({
+    probe: async () => {
+      probeCalls += 1;
+      if (probeCalls === 1) throw badPortError;
+    },
+  });
+
+  try {
+    assert.equal(probeCalls, 2);
+    assert.equal((await fetch(url)).status, 200);
+  } finally {
+    await closeServer(server);
+  }
+});
+
 test("Chrome keeps its sandbox enabled for PR-controlled pages", () => {
   assert.doesNotMatch(smokeSource, /--no-sandbox/);
 });

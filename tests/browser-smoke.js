@@ -53,7 +53,10 @@ function findChrome() {
   return chrome;
 }
 
-function startStaticServer() {
+function startStaticServer({
+  probe = (url) => fetch(url, { method: "HEAD" }),
+  maxBadPortRetries = 10,
+} = {}) {
   const server = createServer((request, response) => {
     try {
       const requestUrl = new URL(request.url, "http://127.0.0.1");
@@ -90,11 +93,34 @@ function startStaticServer() {
   });
 
   return new Promise((resolveServer, reject) => {
+    let badPortRetries = 0;
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      resolveServer({ server, url: `http://127.0.0.1:${address.port}/` });
-    });
+
+    const listen = () => {
+      server.listen(0, "127.0.0.1", async () => {
+        const address = server.address();
+        const url = `http://127.0.0.1:${address.port}/`;
+
+        try {
+          await probe(url);
+          resolveServer({ server, url });
+        } catch (error) {
+          const isBadPort = error?.cause?.message === "bad port";
+          if (!isBadPort || badPortRetries >= maxBadPortRetries) {
+            server.close((closeError) => reject(closeError || error));
+            return;
+          }
+
+          badPortRetries += 1;
+          server.close((closeError) => {
+            if (closeError) reject(closeError);
+            else listen();
+          });
+        }
+      });
+    };
+
+    listen();
   });
 }
 
