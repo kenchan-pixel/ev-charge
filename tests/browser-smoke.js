@@ -430,7 +430,9 @@ async function removeOwnedProfile(
     } catch (error) {
       if (
         attempt === maxAttempts ||
-        (error.code !== "EPERM" && error.code !== "EBUSY")
+        (error.code !== "EPERM" &&
+          error.code !== "EBUSY" &&
+          error.code !== "ENOTEMPTY")
       ) {
         throw error;
       }

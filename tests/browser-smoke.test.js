@@ -223,6 +223,55 @@ test("profile cleanup outlasts a delayed Windows file-lock release", async () =>
   assert.equal(waits.length, 10);
 });
 
+test("profile cleanup retries transient ENOTEMPTY failures", async () => {
+  let attempts = 0;
+  const waits = [];
+
+  await smoke.removeOwnedProfile(
+    join(tmpdir(), "ev-charge-browser-smoke-regression"),
+    {
+      remove: () => {
+        attempts += 1;
+        if (attempts <= 3) {
+          const error = new Error("profile directory is not empty yet");
+          error.code = "ENOTEMPTY";
+          throw error;
+        }
+      },
+      wait: async (delayMs) => waits.push(delayMs),
+      maxAttempts: 5,
+    },
+  );
+
+  assert.equal(attempts, 4);
+  assert.equal(waits.length, 3);
+});
+
+test("profile cleanup stops at its bounded retry limit", async () => {
+  let attempts = 0;
+  const waits = [];
+
+  await assert.rejects(
+    smoke.removeOwnedProfile(
+      join(tmpdir(), "ev-charge-browser-smoke-regression"),
+      {
+        remove: () => {
+          attempts += 1;
+          const error = new Error("profile directory remains non-empty");
+          error.code = "ENOTEMPTY";
+          throw error;
+        },
+        wait: async (delayMs) => waits.push(delayMs),
+        maxAttempts: 3,
+      },
+    ),
+    (error) => error.code === "ENOTEMPTY",
+  );
+
+  assert.equal(attempts, 3);
+  assert.equal(waits.length, 2);
+});
+
 test("a second signal during cleanup shares the pending task before disposal", async () => {
   const signalSource = new EventEmitter();
   const exits = [];
